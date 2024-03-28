@@ -5,8 +5,8 @@ Hi Mr./Ms. Examiner,
 
 #### On macOS, Linux and Windows
 
-1. In cmd prompt or terminal: cd <path to where you want to clone the repo>
-2. In cmd prompt or terminal: clone https://github.com/inc0gn1k0/submission_final_st2195.git
+1. In cmd prompt or terminal: `cd <path to where you want to clone the repo>`
+2. In cmd prompt or terminal: `clone https://github.com/inc0gn1k0/submission_final_st2195.git`
 
 (You can also just download it directly from the same link)
 
@@ -20,17 +20,17 @@ Hi Mr./Ms. Examiner,
 ###  How to recreate my condas environment
 
 1. Navigate to the path where you cloned submission_final folder from the repo link using terminal or cmd prompt
-2. Within terminal or cmd prompt: conda env create -f environment.yml
-3. Activate the environment in terminal: conda activate submission_final
+2. Within terminal or cmd prompt: `conda env create -f environment.yml`
+3. Activate the environment in terminal: `conda activate submission_final`
 	- You can also activate the condas environment from within VS code or any other notebook editor locally on your machine by selecting it at runtime (select submission_final at runtime)
 
 ### Dependencies not covered by my condas environment
 
 - RSQLite 2.3.5
 - Install it by:
-	- conda activate submission_final
+	- `conda activate submission_final`
 	- Type the letter R and press enter in terminal
-	- install.packages('RSQLite')
+	- `install.packages('RSQLite')`
 	
 - (Recommended!) Install the latest version of Rstudio from https://posit.co/download/rstudio-desktop/ 
 - Rstudio automatically installs all R dependencies.

@@ -1,5 +1,3 @@
-what about the prefix section of the yaml, what is that for?
-
 name: submission_final
 channels:
   - conda-forge
