@@ -45,6 +45,8 @@ Hi Mr./Ms. Examiner,
 
 ### Directory Structure
 
+
+```
 submission_final/
 ├── python_notebooks/
 │   ├── requirements.txt
@@ -67,3 +69,5 @@ submission_final/
 ├── raw_data/
 │   └── (Detailed instructions to access or download data into the raw_data folder)
 └── README.md
+
+```

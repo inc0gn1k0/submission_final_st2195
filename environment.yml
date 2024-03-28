@@ -3,8 +3,8 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  - python>3.11
-  - r-base>4.1
+  - python=3.11.*
+  - r-base=4.1.*
   - pandas
   - numpy
   - scipy
@@ -24,9 +24,9 @@ dependencies:
   - r-randomForest
   - pip
   - pip:
-    - dataframe_image
-    - jupyterlab==3.*
-    - seaborn==0.11.*
-    - statsmodels
-    - scikit-learn
-    - matplotlib
+      - dataframe_image
+      - jupyterlab==3.*
+      - seaborn==0.11.*
+      - statsmodels
+      - scikit-learn
+      - matplotlib
