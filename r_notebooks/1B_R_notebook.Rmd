@@ -54,7 +54,7 @@ compute_R_hat <- function(N, s, J, x0_initial_values) {
   Vj <- apply(chains, 2, function(chain) var(chain))
   W <- mean(Vj)
   B <- N * var(Mj)
-  var_hat_plus <- ((N-1)/N) * W + (1/N) * B
+  var_hat_plus <- ((N-1)/N) * W + (1/N) * B #once again we use var_hat_plus as specified in Gelman-Rubin 1992
   R_hat <- sqrt(var_hat_plus / W)
   
   R_hat

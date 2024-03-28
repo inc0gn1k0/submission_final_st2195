@@ -1,27 +1,30 @@
 Hi Mr./Ms. Examiner,
 
 
-#### How to clone the Git Repo 
+### How to clone the Git Repo 
 
-1. 
-2.
-3.
+#### On macOS, Linux and Windows
 
-#### Installing condas for package management
+1. In cmd prompt or terminal: cd <path to where you want to clone the repo>
+2. In cmd prompt or terminal: clone https://github.com/inc0gn1k0/submission_final_st2195.git
 
-1.
-2.
-3.
+(You can also just download it directly from the same link)
 
 
-#### How to recreate my condas environment
+### Installing condas for package management
 
-- Navigate to the path where you cloned submission_final folder from the repo link
-- conda env create -f environment.yml
-- Activate the environment in terminal: conda activate submission_final
-	- You can also activate the condas environment from within VS code or any other notebook editor locally on your machine
+1. Install anacondas globally on your machine: https://www.anaconda.com/download
+2. Try 'conda deactivate' and 'conda activate' ;)
 
-#### Dependencies not covered by my condas environment
+
+###  How to recreate my condas environment
+
+1. Navigate to the path where you cloned submission_final folder from the repo link using terminal or cmd prompt
+2. Within terminal or cmd prompt: conda env create -f environment.yml
+3. Activate the environment in terminal: conda activate submission_final
+	- You can also activate the condas environment from within VS code or any other notebook editor locally on your machine by selecting it at runtime (select submission_final at runtime)
+
+### Dependencies not covered by my condas environment
 
 - RSQLite 2.3.5
 - Install it by:
@@ -30,17 +33,17 @@ Hi Mr./Ms. Examiner,
 	- install.packages('RSQLite')
 	
 - (Recommended!) Install the latest version of Rstudio from https://posit.co/download/rstudio-desktop/ 
+- Rstudio automatically installs all R dependencies.
 
 
-
-#### How to seamlessly run the notebooks:
+### How to seamlessly run the notebooks:
 
 1. Download or Copy the Harvard Dataverse .csv files (>12GB of data) into the empty raw_data folder (https://doi.org/10.7910/DVN/HG7NV7 - there are 26 individual files in total)
 2. Navigate to python_notebooks folder and run the 2DBSetup_python.ipynb notebook or navigate to r_notebooks folder and run the 2DBsetup_R_notebook.Rmd notebook to setup the comp97to07.db database...
 
 
 
-#### Directory Structure
+### Directory Structure
 
 submission_final/
 ├── python_notebooks/
