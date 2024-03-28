@@ -1,0 +1,401 @@
+---
+title: "Question 2B - Coursework"
+student_number: "SRN190341259"
+date: "2023-12-06"
+output: html_document
+---
+
+```{r setup chunk, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## To access the project files to run this notebook
+
+Check github (link: ) to access the entire project folder.
+
+## **2B** Do older planes suffer more delays?
+
+```
+Analysis Recipe:
+
+
+
+```
+
+```{r Q2B Part 0}
+#This script checks that there are no reassigned tailnums....
+
+#Since joins are a key part of the subsequent analysis, it would serve us well to perform a quick check that all tailnums are unique,
+#and have not been reassigned in the 20 years of data that we are drawing our subset from...
+# Load necessary libraries
+library(DBI)
+library(RSQLite)
+library(dplyr)
+
+# Connect to the database
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
+
+# SQL query to retrieve rows with tailnum that have counts greater than 1
+query <- "
+SELECT tailnum, COUNT(DISTINCT year) AS unique_years
+FROM planes
+GROUP BY tailnum
+HAVING unique_years > 1
+"
+
+# Execute the query and fetch the results into a data frame
+duplicated_tailnums_df <- dbGetQuery(conn, query)
+
+# Close the database connection
+dbDisconnect(conn)
+
+# Display the data frame with duplicated tailnums
+print(duplicated_tailnums_df)
+
+#Conclusions: We have confirmed here that the data does not have re-assigned tailnums. Given by the empty df.
+
+```
+
+```{r Q2 Part 1}
+library(DBI)
+library(RSQLite)
+library(dplyr)
+library(kableExtra)
+library(ggplot2)
+
+# Connect to the database
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
+
+subset_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007)  #adjust this subset based on your compute resources available :).....the more years the more intense the computation.
+
+total_counts_df <- data.frame(YoM = integer(), CountArrDelay = integer(), CountDepDelay = integer())
+
+max_year <- max(subset_of_years)
+
+for (i in subset_of_years) {
+  join_query <- sprintf("
+    SELECT p.year AS YoM,
+      SUM(CASE WHEN y.ArrDelay >= 15 THEN 1 ELSE 0 END) AS CountArrDelay, 
+      SUM(CASE WHEN y.DepDelay >= 15 THEN 1 ELSE 0 END) AS CountDepDelay
+    FROM Y%d y
+    INNER JOIN planes p ON y.tailnum = p.tailnum 
+    WHERE p.year <= %d AND p.year IS NOT NULL AND p.year != 0 AND Cancelled != 1
+    GROUP BY p.year
+    ORDER BY p.year", i, max_year)
+  
+  df <- dbGetQuery(conn, join_query)
+  df <- df %>% mutate(across(c(YoM, CountArrDelay, CountDepDelay), as.integer))
+  
+  if (nrow(total_counts_df) == 0) {
+    total_counts_df <- df
+  } else {
+    total_counts_df <- bind_rows(total_counts_df, df) %>% 
+      group_by(YoM) %>% 
+      summarise(across(c(CountArrDelay, CountDepDelay), sum, na.rm = TRUE))
+  }
+
+  print(df)
+}
+
+#I did not export this figure in R, but used the python table in the report instead (see python script 2B)
+# Close the database connection
+dbDisconnect(conn)
+
+print(total_counts_df)
+```
+
+```{r Q2 Part 2}
+library(DBI)
+library(RSQLite)
+library(dplyr)
+library(ggplot2)
+library(glue) #ships by default with R
+
+# Connect to the database
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
+
+subset_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007) #adjust this subset based on your compute resources available :).....the more years the more intense the computation.
+all_data_df <- data.frame()  # Initialize empty data frame
+
+max_year <- max(subset_of_years)
+
+for (i in subset_of_years) {
+  join_query <- sprintf("
+    SELECT p.year AS YoM,
+        COUNT(y.tailnum) as TotalFlights,
+        SUM(CASE WHEN y.ArrDelay >= 15 THEN 1 ELSE 0 END) AS TotalCountArrDelay, 
+        SUM(CASE WHEN y.DepDelay >= 15 THEN 1 ELSE 0 END) AS TotalCountDepDelay,
+        1.0 * SUM(CASE WHEN y.ArrDelay >= 15 THEN 1 ELSE 0 END) / COUNT(y.tailnum) as PercentArrDelay,
+        1.0 * SUM(CASE WHEN y.DepDelay >= 15 THEN 1 ELSE 0 END) / COUNT(y.tailnum) as PercentDepDelay
+    FROM Y%d y
+    INNER JOIN planes p ON y.tailnum = p.tailnum 
+    WHERE p.year <= %d AND p.year IS NOT NULL AND p.year != 0 AND Cancelled != 1
+    GROUP BY p.year
+    ORDER BY p.year", i, max_year)
+
+  df <- dbGetQuery(conn, join_query)
+  all_data_df <- rbind(all_data_df, df)
+}
+
+# Convert columns to appropriate types
+all_data_df$YoM <- as.integer(all_data_df$YoM)
+
+# Group by YoM and aggregate the data
+final_df <- all_data_df %>%
+  group_by(YoM) %>%
+  summarise(
+    TotalFlights = sum(TotalFlights),
+    TotalCountArrDelay = sum(TotalCountArrDelay),
+    TotalCountDepDelay = sum(TotalCountDepDelay),
+    PercentArrDelay = mean(PercentArrDelay),
+    PercentDepDelay = mean(PercentDepDelay)
+  ) %>%
+  mutate(
+    PercentArrDelay = round(PercentArrDelay, 2),
+    PercentDepDelay = round(PercentDepDelay, 2)
+  )
+
+print(final_df)
+
+
+#This table gives us (for all years of manufacture) the TotalFlights, TotalCountArrDelay, TotalCountDepDelay, PercentArrDelay, PercentDepDelay
+#This is now ready for plotting!
+#I did not export this figure in R, but used the python table in the report instead (see python notebook 2B)
+
+```
+
+```{r Q2 Part 3 - Visualization 1}
+
+#Below we use the tibble produced in the previous code block to plot PercentArrDelay vs YoM and PercentDepDelay vs YoM
+
+# Linear regression models
+model_arr_delay <- lm(PercentArrDelay ~ YoM, data = final_df)
+model_dep_delay <- lm(PercentDepDelay ~ YoM, data = final_df)
+
+# Print the summary of the models
+cat("PercentArrDelay vs YoM:\n")
+print(summary(model_arr_delay))
+cat("\nPercentDepDelay vs YoM:\n")
+print(summary(model_dep_delay))
+
+library(ggplot2)
+
+# Arrival Delays
+p_arr <- ggplot(final_df, aes(x = YoM, y = PercentArrDelay)) +
+  geom_point(alpha = 0.5, color = "blue") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = paste("PercentArrDelay vs. YoM", min(subset_of_years),"-",max(subset_of_years)),
+       x = "Year of Manufacture",
+       y = "Percent of Arrival Delays") +
+  theme_minimal() +
+  annotate("text", x = Inf, y = 0, label = sprintf("Slope: %.3f\nP-value: %.3g\nR-squared: %.3g", coef(summary(model_arr_delay))[2], summary(model_arr_delay)$coefficients[2,4], summary(model_arr_delay)$r.squared), hjust = 1.1, vjust = 0, size = 3.5)
+
+# Departure Delays
+p_dep <- ggplot(final_df, aes(x = YoM, y = PercentDepDelay)) +
+  geom_point(alpha = 0.5, color = "blue") +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = paste("PercentDepDelay vs. YoM", min(subset_of_years),"-", max(subset_of_years)),
+       x = "Year of Manufacture",
+       y = "Percent of Departure Delays") +
+  theme_minimal() +
+  annotate("text", x = Inf, y = 0, label = sprintf("Slope: %.3f\nP-value: %.3g\nR-squared: %.3g", coef(summary(model_dep_delay))[2], summary(model_dep_delay)$coefficients[2,4], summary(model_dep_delay)$r.squared), hjust = 1.1, vjust = 0, size = 3.5)
+
+# Display plots
+print(p_arr)
+
+#Check if image directory exists, if not, it is created
+dir_path <- './r_images'
+if(!dir.exists(dir_path)) {
+  dir.create(dir_path, recursive=TRUE)
+}
+
+ggsave(filename = paste0("./r_images/R_2B3_ArrDelay", min(subset_of_years),"-", max(subset_of_years),".png"), plot = p_arr, width = 10, height = 5, dpi = 300)
+
+print(p_dep)
+ggsave(filename = paste0("./r_images/R_2B3_DepDelay", min(subset_of_years),"-", max(subset_of_years),".png"), plot = p_dep, width = 10, height = 5, dpi = 300)
+
+
+```
+
+```{r Q2 Part 4 - Visualization 2}
+
+library(DBI)
+library(RSQLite)
+library(dplyr)
+library(ggplot2)
+
+# Connect to the database
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
+
+subset_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007)
+all_years_df <- list()
+
+max_year <- max(subset_of_years)
+
+for (i in subset_of_years) {
+  join_query <- sprintf("
+    SELECT p.year AS YoM, 
+        ROUND(SUM(y.ArrDelay * (y.ArrDelay / (y.ArrDelay +  y.DepDelay))) / SUM(y.ArrDelay / (y.ArrDelay + y.DepDelay)),0) AS WeightedAvgArrDelay, 
+        ROUND(SUM(y.DepDelay * (y.DepDelay / (y.ArrDelay + y.DepDelay))) / SUM(y.DepDelay / (y.ArrDelay + y.DepDelay)),0) AS WeightedAvgDepDelay
+    FROM Y%d y
+    INNER JOIN planes p ON y.tailnum = p.tailnum
+    WHERE (y.ArrDelay >= 15 AND y.DepDelay >= 15) 
+        AND p.year IS NOT NULL 
+        AND p.year != 0
+        AND p.year <= %d
+    GROUP BY p.year
+    ORDER BY p.year", i, max_year)
+  
+  df <- dbGetQuery(conn, join_query)
+  all_years_df[[i]] <- df
+}
+
+combined_df <- do.call(rbind, all_years_df)
+
+# Adding a constant column for linear regression intercept
+combined_df$const <- 1
+
+# Regression for Arrival Delay
+model_arr <- lm(WeightedAvgArrDelay ~ YoM + const, data = combined_df)
+
+# Regression for Departure Delay
+model_dep <- lm(WeightedAvgDepDelay ~ YoM + const, data = combined_df)
+
+# Extract key regression statistics
+summary_arr <- summary(model_arr)
+summary_dep <- summary(model_dep)
+
+# Arrival Delays Visualization
+arr_len_plot <- ggplot(combined_df, aes(x = YoM, y = WeightedAvgArrDelay)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", formula = y ~ x, color = "red") +
+  labs(title = paste("Arrival Delay Length vs. Year of Manufacture (YoM) for 2004-2007", min(subset_of_years),"-", max(subset_of_years)),
+       x = "Year of Manufacture", y = "Weighted Average Arrival Delay, in minutes") +
+  annotate("text", x = Inf, y = Inf, label = sprintf("Slope: %.3f\nP-value: %.3g\nR-squared: %.3g",
+                coef(summary(model_arr))["YoM", "Estimate"],
+                coef(summary(model_arr))["YoM", "Pr(>|t|)"],
+                summary(model_arr)$r.squared), hjust = 1.1, vjust = 1.1, size = 4)
+
+# Departure Delays Visualization
+dep_len_plot <- ggplot(combined_df, aes(x = YoM, y = WeightedAvgDepDelay)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", formula = y ~ x, color = "red") +
+  labs(title = paste("Departure Delay Length vs. Year of Manufacture (YoM) for 2004-2007",min(subset_of_years),"-",max(subset_of_years)),
+       x = "Year of Manufacture", y = "Weighted Average Departure Delay, in minutes") +
+  annotate("text", x = Inf, y = Inf, label = sprintf("Slope: %.3f\nP-value: %.3g\nR-squared: %.3g",
+                coef(summary(model_dep))["YoM", "Estimate"],
+                coef(summary(model_dep))["YoM", "Pr(>|t|)"],
+                summary(model_dep)$r.squared), hjust = 1.1, vjust = 1.1, size = 4)
+
+print(arr_len_plot)
+
+#Check if image directory exists, if not, it is created
+dir_path <- './r_images'
+if(!dir.exists(dir_path)) {
+  dir.create(dir_path, recursive=TRUE)
+}
+
+ggsave(paste0('./r_images/R_2B4_ArrLength',min(subset_of_years),'-',max(subset_of_years),'.png'), plot = arr_len_plot, width = 10, height = 6)
+print(dep_len_plot)
+ggsave(paste0('./r_images/R_2B4_DepLength',min(subset_of_years),'-',max(subset_of_years),'.png'), plot = dep_len_plot, width = 10, height = 6)
+
+dbDisconnect(conn)
+
+```
+
+```{r Q2B Part 5 - Visualization 3}
+
+library(DBI)
+library(dplyr)
+library(ggplot2)
+
+# Connect to the database
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
+
+subset_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007)
+all_years_df <- list()
+
+max_year <- max(subset_of_years)
+
+for (i in subset_of_years) {
+  query <- sprintf(
+    "SELECT 
+      %d - CAST(SUBSTR(p.issue_date, -4) AS INTEGER) AS Age,
+      SUM(CASE WHEN y.ArrDelay >= 15 THEN 1 ELSE 0 END + CASE WHEN y.DepDelay >= 15 THEN 1 ELSE 0 END) AS DelayIncidents,
+      COUNT(*) AS 'Number_of_Flights',
+      CAST(SUM(CASE WHEN y.ArrDelay >= 15 THEN 1 ELSE 0 END + CASE WHEN y.DepDelay >= 15 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) AS 'Delays_Per_Flights'
+    FROM 
+      Y%d as y
+    INNER JOIN 
+      planes p ON y.tailnum = p.tailnum
+    WHERE
+      p.year <= %d AND
+      CAST(SUBSTR(p.issue_date, -4) AS INTEGER) <= %d AND
+      y.Cancelled != 1
+    GROUP BY 
+      Age
+    ORDER BY 
+      Age DESC;",
+    i, i, max_year, i
+  )
+  
+  tmp_df <- dbGetQuery(conn, query)
+  all_years_df[[as.character(i)]] <- tmp_df
+}
+
+combined_df_age <- bind_rows(all_years_df)
+
+# Aggregate DelayIncidents and Number of Flights for each Age across all years
+final_aggregated_df <- combined_df_age %>% #here I used the magrittr pipe, which makes my code easier to read
+  group_by(Age) %>%
+  summarise(
+    DelayIncidents = sum(DelayIncidents),
+    Number_of_Flights = sum(Number_of_Flights),
+    Delays_Per_Flight = sum(DelayIncidents) / sum(Number_of_Flights)
+  )
+
+print(head(final_aggregated_df, 20))
+print(tail(final_aggregated_df, 20))
+
+# Prepare the data for regression
+final_aggregated_df$Age <- as.numeric(final_aggregated_df$Age)
+model <- lm(Delays_Per_Flight ~ Age, data = final_aggregated_df)
+
+# Extract regression summary details
+summary_model <- summary(model)
+slope <- summary_model$coefficients["Age", "Estimate"]
+p_value <- summary_model$coefficients["Age", "Pr(>|t|)"]
+r_squared <- summary_model$r.squared
+
+# Create the scatter plot and regression line with adjusted plot margins
+plot <- ggplot(final_aggregated_df, aes(x = Age, y = Delays_Per_Flight)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", color = "red") +
+  labs(title = paste("AggregateDelayIncidence%Flights vs. Age of Planes",min(subset_of_years),'-',max(subset_of_years)), x = "Age of Planes (Years)", y = "Delays%Flights") +
+  theme_minimal() +
+  theme(plot.margin = margin(1, 1, 1, 1, "cm")) +  # Adjust plot margins (top, right, bottom, left)
+  annotate("text", x = Inf, y = 0, label = sprintf("Slope: %.3f\nP-Value: %.3g\nR-Squared: %.3g", slope, p_value, r_squared),
+           hjust = 1, vjust = 0, size = 4, color = "blue")
+
+
+
+#Check if image directory exists, if not, it is created
+dir_path <- './r_images'
+if(!dir.exists(dir_path)) {
+  dir.create(dir_path, recursive=TRUE)
+}
+# Save the plot with adjusted margins
+ggsave(paste0('./r_images/R_2B5_AggDelays',min(subset_of_years),'-', max(subset_of_years),'.png'), plot = plot, width = 10, height = 6)
+
+# Print the regression summary and the plot itself to verify position
+print(summary(model))
+print(plot)
+
+# Disconnect from the database
+dbDisconnect(conn)
+```

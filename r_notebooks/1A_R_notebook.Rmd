@@ -1,0 +1,148 @@
+---
+title: "Question 1A Coursework"
+student_number: "SRN190341259"
+date: "2023-12-06"
+output: html_document
+---
+
+```{r setup chunk, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## To access the project files to run this notebook
+
+Check github (link: ) to access the entire project folder.
+
+# Objective (1A): 
+
+    i. Apply the random walk Metropolis algorithm using N = 10000 and s = 1 
+    ii. Use the generated samples (x1, . . . xN ) to construct a histogram and a kernel density plot in the same figure 
+    iii. Overlay a graph of f (x) on this figure to visualise the quality of these estimates 
+    iv. Report the sample mean and standard deviation of the generated samples (Note: these are also known as the Monte Carlo estimates of the mean and standard deviation respectively).
+
+# Method
+I created these 3 functions in both python and R to generate our proposed distribution
+```
+f(x)
+
+log_f(x)
+
+random_walk_metropolis(N, s, x0)
+```
+
+```{r Q1A}
+
+library(ggplot2)
+
+#Step 1: Set up the initial variables
+# Target distribution PDF
+f <- function(x) {
+  return(0.5 * exp(-abs(x)))
+}
+
+# Log of the target distribution for numerical stability
+log_f <- function(x) {
+  return(log(0.5) - abs(x))
+}
+
+#Step 2: Use Random Walk Metropolis Algo
+
+# Random walk Metropolis algorithm
+random_walk_metropolis <- function(N, s, x0) {
+  samples <- numeric(N)
+  samples[1] <- x0  # initial value
+  
+  for (i in 2:N) {
+    x_star <- rnorm(1, mean = samples[i-1], sd = s)  # propose a new state
+    log_r <- log_f(x_star) - log_f(samples[i-1])  # compute log of ratio
+    u <- log(runif(1))  # log of uniform random number for comparison
+    
+    if (u < log_r) {
+      samples[i] <- x_star  # accept the new state
+    } else {
+      samples[i] <- samples[i-1]  # reject the new state
+    }
+  }
+  
+  return(samples)
+}
+
+#Generate Samples + Visualize
+# Parameters
+N <- 10000
+s <- 1
+x0 <- 0
+
+# Generate samples
+samples <- random_walk_metropolis(N, s, x0)
+
+# Calculate the sample mean and standard deviation
+sample_mean <- mean(samples)
+sample_std <- sd(samples)
+
+# Visualization: Histogram and Kernel Density Estimate (KDE) with the Actual Distribution Overlay
+#What is a KDE: A technique used in statistics to create a smooth curve given a set of data. In the simplest terms, a KDE can be thought of as a smoothed version of a histogram, describing the distribution of a random variable. Its params are smoothness, kernel and bandwidth...
+plot <- ggplot(data.frame(x = samples), aes(x = x)) +
+  geom_histogram(aes(y = ..density.., fill = "Histogram"), bins = 30, alpha = 0.5) + # Assign fill within aes for legend
+  geom_density(aes(color = "KDE"), size = 1) + # Assign color within aes for legend
+  stat_function(fun = f, aes(color = "Target Distribution"), size = 1) + # Use aes for color to add to legend
+  scale_fill_manual(name = "", values = "skyblue", labels = "Histogram") + # Manual scale for fill
+  scale_color_manual(name = "", values = c("KDE" = "green", "Target Distribution" = "pink"), labels = c("KDE", "Target Distribution")) + # Manual scale for color
+  labs(title = "Histogram and Kernel Density Estimate with f(x) Overlay",
+       x = "x", y = "Density") +
+  annotate("text", x = min(samples), y = max(0.5 * exp(-abs(min(samples)))), label = sprintf("Monte Carlo Mean: %.5f\nMonte Carlo Stdev: %.5f", sample_mean, sample_std), hjust = 0, vjust = -0.5, size = 3.5) +
+  theme_minimal() +
+  guides(fill = guide_legend(override.aes = list(alpha = 1))) 
+
+print(plot)
+
+dir_path <- './r_images'
+
+if(!dir.exists(dir_path)) {
+  dir.create(dir_path, recursive=TRUE)
+}
+
+ggsave("./r_images/1A_R.png", plot, width = 8, height = 5, dpi = 300)
+```
+
+#### Dissecting our function of random_walk_metropolis()
+
+# 1. Generate a candidate for state change 
+$x_{\ast}$
+
+```
+for i in range(1, N):
+
+x_star = norm.rvs(loc=samples[i-1], scale=s)
+```
+
+* Here we simulate a random number from the normal distribution with mean (loc) equal to prev step ( $x_{i}$ )and standard deviation s.
+
+# 2. Compute acceptance ratio of a move:
+
+* We have an acceptance criterion $u < r(x_{\ast},x_{i-1})$ 
+* Expressing the acceptance criterion in log terms makes our analysis more numerically stable $log_{u} < log_{r} (x_{\ast}, x_{i−1})$ , where $log_{r} (x_{\ast}, x_{i−1})$ = $log f(x_{\ast}) − log f(x_{i−1})$
+
+```
+for i in range(1, N):
+
+log_r = log_f(x_star) - log_f(samples[i-1])
+```
+
+# 3. u is a uniformly distributed random number between 0 and 1 (and it is randomly drawn)
+
+```
+log_u = np.log(uniform.rvs())
+```
+
+# 4. We accept a move to the proposed step (and so set $x_{i} = x_{\ast}$ ) if $log_{u} < log_{r}(x_{\ast}, x_{i−1})$ and "stay" on current value (by setting $x_{i} = x_{i-1}$ where $x_{i-1}$ is the previous step) if $log_{u} > log_{r} (x_{\ast}, x_{i−1})$
+
+```
+if log_u < log_r:
+
+samples[i] = x_star  # accept the new state
+
+else:
+
+samples[i] = samples[i-1]  # reject the new state
+```

@@ -1,0 +1,9 @@
+raw_data/*
+!raw_data/README2.md
+
+
+r_notebooks/*.RData
+r_notebooks/*.RDataTmp
+r_notebooks/*.Rhistory
+
+*.DS_Store

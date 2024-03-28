@@ -1,0 +1,958 @@
+---
+title: "Question 2C - Coursework"
+student_number: "SRN190341259"
+date: "2023-12-06"
+output: html_document
+---
+
+```{r setup chunk, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## To access the project files to run this notebook
+
+Check github (link: ) to access the entire project folder.
+
+
+## **3.** Plotting a logistic regression model for the probability of diverted US Flights 
+
+```
+Analysis Recipe:
+
+For each year...
+using as many features as possible 
+from attributes of the departure date, the scheduled departure and arrival times, the coordinates and distance between departure and planned arrival airports, and the carrier. 
+
+```
+
+
+# i. Feature preparation
+
+```{r Q2C Part 1}
+
+#Diverted percentage based feature preparation and Carrier feature preparation....
+
+library(DBI)
+library(RSQLite)
+library(dplyr)
+
+# Connect to the database
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
+
+#query data and aggregate
+subset_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007) #adjust this according to your available compute resources :)......less years means lower probability of a kernel crash on your local machine.
+
+temp_storage_ranked_1 <- list()
+
+for (i in subset_of_years) {
+  diverted_planes <- sprintf("
+    SELECT Dest AS Airport, COUNT(Diverted) AS DivertedCount
+    FROM Y%d
+    WHERE Diverted = 1 AND Cancelled != 1
+    GROUP BY Dest
+    ORDER BY DivertedCount DESC", i)
+  
+  df_ranked_divertedcount <- dbGetQuery(conn, diverted_planes)
+  temp_storage_ranked_1[[as.character(i)]] <- df_ranked_divertedcount
+}
+
+df_ranked_divertedcount_2004_2007 <- do.call(rbind, temp_storage_ranked_1) %>%
+  group_by(Airport) %>%
+  summarise(DivertedCount = sum(DivertedCount)) %>%
+  arrange(desc(DivertedCount)) %>%
+  ungroup()
+
+sum_diverted_count <- sum(df_ranked_divertedcount_2004_2007$DivertedCount)
+df_ranked_divertedcount_2004_2007$DivertedCount <- df_ranked_divertedcount_2004_2007$DivertedCount/sum_diverted_count
+percent_check <- sum(df_ranked_divertedcount_2004_2007$DivertedCount)
+
+df_ranked_divertedcount_2004_2007 <- df_ranked_divertedcount_2004_2007 %>% rename(DivertedCount_pct = DivertedCount)
+
+# Optional: Add rank if needed. Note: Commented out as mentioned not improving the model.
+# df_ranked_divertedcount_2004_2007$Rank <- seq_along(df_ranked_divertedcount_2004_2007$DivertedCount)
+
+print(percent_check)
+# Display top 10 and bottom 10 airports
+print(head(df_ranked_divertedcount_2004_2007, 10))
+print(tail(df_ranked_divertedcount_2004_2007, 13))
+
+temp_storage_ranked_2 <- list()
+
+for (i in subset_of_years) {
+  carrier_diverted <- sprintf(" SELECT UniqueCarrier AS UniqueCarrier, SUM(CASE WHEN Diverted = 1 THEN 1 ELSE 0 END) AS DivertedCount
+    FROM Y%d
+    WHERE Cancelled != 1
+    GROUP BY UniqueCarrier
+    ORDER BY DivertedCount DESC", i)
+  
+  df_ranked_carrier_diverted <- dbGetQuery(conn, carrier_diverted)
+  temp_storage_ranked_2[[as.character(i)]] <- df_ranked_carrier_diverted
+  }
+
+
+df_ranked_carrier_diverted_2004_2007 <- do.call(rbind, temp_storage_ranked_2) %>%
+  group_by(UniqueCarrier) %>%
+  summarise(DivertedCount = sum(DivertedCount)) %>%
+  arrange(desc(DivertedCount)) %>%
+  ungroup()
+
+# Optional: Add rank if needed. Note: Commented out as mentioned in the report, for not improving the model.
+# df_ranked_divertedcount_2004_2007$Rank <- seq_along(df_ranked_divertedcount_2004_2007$DivertedCount)
+
+sum_carrier_diverted_count <- sum(df_ranked_carrier_diverted_2004_2007$DivertedCount)
+df_ranked_carrier_diverted_2004_2007$DivertedCount <- df_ranked_carrier_diverted_2004_2007$DivertedCount/sum_carrier_diverted_count
+
+percent_check <- sum(df_ranked_carrier_diverted_2004_2007$DivertedCount)
+
+df_ranked_carrier_diverted_2004_2007 <- df_ranked_carrier_diverted_2004_2007 %>% rename(Carrier_pct_Diverted = DivertedCount)
+
+
+print(percent_check)
+# Display top 10 and bottom 10 airports
+print(head(df_ranked_carrier_diverted_2004_2007, 10))
+print(tail(df_ranked_carrier_diverted_2004_2007, 13))
+
+# Disconnect from the database
+dbDisconnect(conn)
+
+```
+
+
+```{r Q2C Part 2}
+#ArrDelayCount and DepDelayCount percentage based features preparation
+
+# Load necessary libraries
+library(DBI)
+library(dplyr)
+
+# Connect to the database
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
+
+list_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007) #adjust this according to your available compute resources :)......less years means lower probability of a kernel crash on your local machine.
+
+# Initialize storage for data frames
+temp_storage_ranked_1 <- list()
+
+# Airport Ranking of DepDelayCount
+for (i in list_of_years) {
+  dep_delayed_planes <- sprintf(
+    "SELECT Origin AS Airport, COUNT(DepDelay) AS DepDelayCount
+    FROM Y%d
+    WHERE DepDelay >= 15 AND Cancelled != 1
+    GROUP BY Origin
+    ORDER BY DepDelayCount DESC", i)
+    
+  df_ranked_depdelay <- dbGetQuery(conn, dep_delayed_planes)
+  temp_storage_ranked_1[[as.character(i)]] <- df_ranked_depdelay
+}
+
+df_ranked_depcount_2004_2007 <- do.call(rbind, temp_storage_ranked_1) %>%
+  group_by(Airport) %>%
+  summarise(DepDelayCount = sum(DepDelayCount)) %>%
+  arrange(desc(DepDelayCount))
+
+sum_depcount <- sum(df_ranked_depcount_2004_2007$DepDelayCount)
+
+df_ranked_depcount_2004_2007$DepDelayCount <- df_ranked_depcount_2004_2007$DepDelayCount/sum_depcount
+
+df_ranked_depcount_2004_2007 <- rename(df_ranked_depcount_2004_2007, DepDelayCount_pct= DepDelayCount)
+percent_check <- sum(df_ranked_depcount_2004_2007$DepDelayCount)
+
+print(percent_check)
+print(head(df_ranked_depcount_2004_2007, 10))
+print(tail(df_ranked_depcount_2004_2007, 10))
+
+
+
+# #Airport Ranking of DepDelayLength....CMD+SHIFT+C helped me comment these out quickly, because they are no longer relevant features for my model...
+# temp_storage_ranked_2 <- list()
+# for (i in list_of_years) {
+#   dep_delay_length_query <- sprintf(
+#     "SELECT Origin AS Airport, SUM(DepDelay) AS DepDelayLength
+#     FROM Y%d
+#     WHERE DepDelay >= 15 AND Cancelled != 1
+#     GROUP BY Origin
+#     ORDER BY DepDelayLength DESC", i)
+#     
+#   df_ranked_depdelay_length <- dbGetQuery(conn, dep_delay_length_query)
+#   temp_storage_ranked_2[[as.character(i)]] <- df_ranked_depdelay_length
+# }
+# 
+# df_ranked_deplength_2004_2007 <- do.call(rbind, temp_storage_ranked_2) %>%
+#   group_by(Airport) %>%
+#   summarise(DepDelayLength = sum(DepDelayLength)) %>%
+#   arrange(desc(DepDelayLength))
+# df_ranked_deplength_2004_2007 <- df_ranked_deplength_2004_2007 %>%
+#   mutate(Rank = row_number()) # Adds a Rank column
+
+
+
+# Airport Ranking of ArrDelayCount
+temp_storage_ranked_3 <- list()
+for (i in list_of_years) {
+  arr_delay_count_query <- sprintf(
+    "SELECT Origin AS Airport, COUNT(ArrDelay) AS ArrDelayCount
+    FROM Y%d
+    WHERE ArrDelay >= 15 AND Cancelled != 1
+    GROUP BY Origin
+    ORDER BY ArrDelayCount DESC", i)
+    
+  df_ranked_arrdelay_count <- dbGetQuery(conn, arr_delay_count_query)
+  temp_storage_ranked_3[[as.character(i)]] <- df_ranked_arrdelay_count
+}
+
+df_ranked_arrcount_2004_2007 <- do.call(rbind, temp_storage_ranked_3) %>%
+  group_by(Airport) %>%
+  summarise(ArrDelayCount = sum(ArrDelayCount)) %>%
+  arrange(desc(ArrDelayCount))
+
+sum_arrcount <- sum(df_ranked_arrcount_2004_2007$ArrDelayCount)
+
+df_ranked_arrcount_2004_2007$ArrDelayCount <- df_ranked_arrcount_2004_2007$ArrDelayCount/sum_arrcount
+
+df_ranked_arrcount_2004_2007 <- rename(df_ranked_arrcount_2004_2007,ArrDelayCount_pct= ArrDelayCount)
+percent_check <- sum(df_ranked_arrcount_2004_2007$ArrDelayCount)
+
+print(percent_check)
+print(head(df_ranked_arrcount_2004_2007, 10))
+print(tail(df_ranked_arrcount_2004_2007, 10))
+
+# Don't forget to close the database connection
+dbDisconnect(conn)
+
+# #Airport Ranking of ArrDelayLength
+# temp_storage_ranked_4 <- list()
+# for (i in list_of_years) {
+#   arr_delay_length_query <- sprintf(
+#     "SELECT Origin AS Airport, SUM(ArrDelay) AS ArrDelayLength
+#     FROM Y%d
+#     WHERE ArrDelay >= 15 AND Cancelled != 1
+#     GROUP BY Origin
+#     ORDER BY ArrDelayLength DESC", i)
+#     
+#   df_ranked_arrdelay_length <- dbGetQuery(conn, arr_delay_length_query)
+#   temp_storage_ranked_4[[as.character(i)]] <- df_ranked_arrdelay_length
+# }
+# 
+# df_ranked_arrlength_2004_2007 <- do.call(rbind, temp_storage_ranked_4) %>%
+#   group_by(Airport) %>%
+#   summarise(ArrDelayLength = sum(ArrDelayLength)) %>%
+#   arrange(desc(ArrDelayLength))
+# df_ranked_arrlength_2004_2007 <- df_ranked_arrlength_2004_2007 %>%
+#   mutate(Rank = row_number()) # Adds a Rank column
+# 
+# # Printing the results for DepDelayLength, ArrDelayCount, ArrDelayLength
+# print(head(df_ranked_deplength_2004_2007, 10))
+# print(tail(df_ranked_deplength_2004_2007, 10))
+# 
+# print(head(df_ranked_arrlength_2004_2007, 10))
+# print(tail(df_ranked_arrlength_2004_2007, 10))
+
+```
+
+```{r Q2C Part 3}
+library(DBI)
+library(dplyr)
+library(data.table)
+
+# Connect to the database
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
+
+# Define Merge Functions
+diverted_merge_with_suffix <- function(df_main, df_rank, on_column) {
+  new_column_name <- paste0("DivertedCount_pct_", on_column)
+  df_merged <- left_join(df_main, setNames(df_rank[, c("Airport", "DivertedCount_pct")], c(on_column, new_column_name)), by = on_column)
+  return(df_merged)
+}
+
+dep_delaycount_merge_with_suffix <- function(df_main, df_rank, on_column) {
+  new_column_name <- paste0("DepDelayCount_pct_", on_column)
+  df_merged <- left_join(df_main, setNames(df_rank[, c("Airport", "DepDelayCount_pct")], c(on_column, new_column_name)), by = on_column)
+  return(df_merged)
+}
+
+arr_delaycount_merge_with_suffix <- function(df_main, df_rank, on_column) {
+  new_column_name <- paste0("ArrDelayCount_pct_", on_column)
+  df_merged <- left_join(df_main, setNames(df_rank[, c("Airport", "ArrDelayCount_pct")], c(on_column, new_column_name)), by = on_column)
+  return(df_merged)
+}
+
+carrier_delaycount_merge_with_suffix <- function(df_main, df_rank, on_column) {
+  new_column_name <- paste0("Carrier_pct_Diverted_", on_column)
+  df_merged <- left_join(df_main, setNames(df_rank[, c("UniqueCarrier", "Carrier_pct_Diverted")], c(on_column, new_column_name)), by = on_column)
+  return(df_merged)
+}
+
+
+# dep_arr_delaylength_merge_with_suffix <- function(df_main, df_rank, on_column, delay_type) {
+#   new_column_name <- paste0("Rank_", delay_type, "_", on_column)
+#   df_merged <- left_join(df_main, setNames(df_rank[, c("Airport", "Rank")], c(on_column, new_column_name)), by = on_column)
+#   return(df_merged)
+# }
+
+# Define the years subset
+subset_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007) #adjust this according to your available compute resources :)......less years means lower probability of a kernel crash on your local machine.
+
+temp_storage_ranked_5 <- list()
+
+# Iterate through each year
+for (year in subset_of_years) {
+  # SQL query to get the core features
+  query <- sprintf("
+    SELECT 
+      y.Year, 
+      y.Month,
+      y.DayofMonth, 
+      y.DayOfWeek, 
+      (y.CRSArrTime)/10000 AS CRSArrTime, 
+      (y.CRSDepTime)/10000 AS CRSDepTime, 
+      y.UniqueCarrier, 
+      y.Distance, 
+      y.Origin,
+      ao.lat AS OriginLatitude,
+      ao.long AS OriginLongitude, 
+      y.Dest,       
+      ad.lat AS DestinationLatitude,
+      ad.long AS DestinationLongitude,   
+      y.Diverted AS Diverted
+    FROM Y%d AS y
+    LEFT JOIN planes AS p ON y.tailnum = p.tailnum
+    LEFT JOIN airports AS ao ON y.Origin = ao.iata 
+    LEFT JOIN airports AS ad ON y.Dest = ad.iata
+    WHERE y.Cancelled != 1 
+          AND y.tailnum IN (
+          SELECT tailnum 
+          FROM Y%d AS sub_y
+          WHERE sub_y.Diverted = 1
+      )
+          AND y.Origin IN (
+          SELECT Origin
+          FROM Y%d AS sub_y
+          WHERE sub_y.Diverted = 1
+          )
+          AND y.Dest IN (
+          SELECT Dest
+          FROM Y%d AS sub_y
+          WHERE sub_y.Diverted = 1
+          )
+    ORDER BY y.Year, y.Month, y.DayofMonth, y.DayOfWeek, y.CRSDepTime", year, year, year, year)
+
+  df_core_features <- dbGetQuery(conn, query)
+  print(paste("Query Read for Year:", year))
+
+  # Applying merge functions
+  #df_core_features <- diverted_merge_with_suffix(df_core_features, df_ranked_divertedcount_2004_2007, 'Origin')
+  df_core_features <- diverted_merge_with_suffix(df_core_features, df_ranked_divertedcount_2004_2007, 'Dest')
+  #df_core_features <- dep_delaycount_merge_with_suffix(df_core_features, df_ranked_depcount_2004_2007, 'Origin')
+  df_core_features <- dep_delaycount_merge_with_suffix(df_core_features, df_ranked_depcount_2004_2007, 'Dest')
+  #df_core_features <- arr_delaycount_merge_with_suffix(df_core_features, df_ranked_arrcount_2004_2007, 'Origin')
+  df_core_features <- arr_delaycount_merge_with_suffix(df_core_features, df_ranked_arrcount_2004_2007, 'Dest')
+  df_core_features <- carrier_delaycount_merge_with_suffix(df_core_features, df_ranked_carrier_diverted_2004_2007, 'UniqueCarrier')  
+  
+  # df_core_features <- dep_arr_delaylength_merge_with_suffix(df_core_features, df_ranked_deplength_2004_2007, 'Origin', 'DepDelayLength')
+  # df_core_features <- dep_arr_delaylength_merge_with_suffix(df_core_features, df_ranked_arrlength_2004_2007, 'Dest', 'ArrDelayLength')
+  
+  # Print statements for each merge operation
+  print(paste("Merges for year", year, "completed."))
+
+  # post process i add to list
+  temp_storage_ranked_5[[as.character(year)]] <- df_core_features
+  
+  # Call garbage collector
+  gc(verbose = TRUE)
+}
+
+# Concatenate, clean up, and export
+df_complete_airplane_features <- rbindlist(temp_storage_ranked_5, fill = TRUE)
+fwrite(df_complete_airplane_features, "./complete-airplane-feature-set-R.csv", verbose = TRUE)
+
+# Final garbage collection
+gc(verbose = TRUE)
+
+# Closing the database connection
+dbDisconnect(conn)
+
+print(paste("Data processing complete. Exported", nrow(df_complete_airplane_features), "rows to CSV."))
+
+
+```
+
+
+```{r Q2C Part 4}
+#Need to free up memory for this
+rm(list = ls())
+
+library(data.table)
+
+# Further Data Cleaning and Shaping
+df <- fread('./complete-airplane-feature-set-R.csv')
+cat('Number of rows before dropping NaN:', nrow(df), '\n')
+df_complete_airplane_features_cleaned <- na.omit(df) # Removes rows with NA values
+
+# Convert specified columns to integer
+#list_of_numeric_cols <- c('Year', 'Month', 'DayofMonth', 'DayOfWeek', 'CRSArrTime', 'CRSDepTime','Distance', 'Diverted','DivertedCount_pct_Dest', 'DepDelayCount_pct_Dest', 'ArrDelayCount_pct_Dest', 'Carrier_pct_Diverted_UniqueCarrier')
+#df_complete_airplane_features_cleaned[, (list_of_numeric_cols) := lapply(.SD, as.integer), .SDcols = list_of_numeric_cols]
+# Printing the first few rows of the cleaned dataframe
+print(head(df_complete_airplane_features_cleaned))
+# Display number of rows after dropping NA
+cat('Number of rows after dropping NaN:', nrow(df_complete_airplane_features_cleaned), '\n')
+
+# Renaming first column to IndexVariable
+#setnames(df_complete_airplane_features_cleaned, old = names(df_complete_airplane_features_cleaned)[0], new = 'IndexVariable') 
+print(names(df_complete_airplane_features_cleaned)) # Check columns after renaming
+
+# Clean up memory
+gc()
+
+# Placing target variable at end of DataFrame
+# Ensure the target column 'Diverted' is the last one
+setcolorder(df_complete_airplane_features_cleaned, c(setdiff(names(df_complete_airplane_features_cleaned), 'Diverted'), 'Diverted'))
+
+
+print(head(df_complete_airplane_features_cleaned))
+cat('Final DataFrame length:', nrow(df_complete_airplane_features_cleaned), '\n') # Print final DataFrame length
+# Save to disk
+fwrite(df_complete_airplane_features_cleaned, './complete-airplane-feature-set-R.csv', row.names = FALSE)
+
+```
+
+
+```{r Q2C Part 5}
+
+library(dplyr)
+
+# If you are re-running this code block, please make sure the following dataframe objects are still loaded in memory: df_ranked_divertedcount_2004_2007, df_complete_airplane_features_final
+#and this variable must also still be loaded in memory: sum_diverted_count
+# in my version of this code, I removed some of these variables, using garbage collector (gc())...
+
+cat('This is the number of diverted flights between 2004 and 2007:', sum_diverted_count, '\n')
+
+# Calculate the total number of rows in your final data frame
+sum_sample_space <- nrow(df_complete_airplane_features_final)
+
+cat(,'\n','This is the total size of our training/test split data:', sum_sample_space, '\n')
+
+# Calculate the percentage of diverted flights
+percentage_of_sample_space <- (sum_diverted_count / sum_sample_space) * 100
+
+cat('This is the % of our sample that observed the phenomenon:', round(percentage_of_sample_space, 4), '%\n')
+
+#This means we need to undersample our majority class, to rectify the class imbalance...
+
+```
+
+# ii. Model training and visualising the coefficients across years...
+
+```{r Q2C MODELv1 - ROC-AUC and coefficients...which we have to use for plotting the bar plot - Part 6.1}
+# Clear existing workspace
+rm(list = ls())
+
+# Load necessary libraries
+library(data.table)
+library(caret)
+library(pROC)
+
+# Load the dataset
+df <- fread('./complete-airplane-feature-set-R.csv')
+
+# Select required columns and ensure it's a data.table
+selected_df <- df[, .(Year, Month, DayOfWeek, CRSArrTime, CRSDepTime, Distance, DivertedCount_pct_Dest, DepDelayCount_pct_Dest, ArrDelayCount_pct_Dest, Carrier_pct_Diverted_UniqueCarrier, Diverted)]
+
+# Preprocess "Distance" using range scaling
+preProcValues <- preProcess(selected_df[, .(Distance)], method = c("range"))
+selected_df[, Distance := predict(preProcValues, selected_df[, .(Distance)])$Distance]
+
+# Prepare for downsampling
+set.seed(42)  # For reproducibility
+diverted_by_year <- split(selected_df[Diverted == 1], by = "Year")
+
+# Downsample and combine datasets
+downsampled_list <- lapply(names(diverted_by_year), function(year) {
+  non_diverted <- selected_df[Year == year & Diverted == 0]
+  num_to_sample <- min(nrow(non_diverted), 4 * nrow(diverted_by_year[[year]]))
+  if (num_to_sample > 0) {
+    rbindlist(list(non_diverted[sample(.N, num_to_sample)], diverted_by_year[[year]]))
+  }
+})
+
+df_balanced <- rbindlist(downsampled_list)
+
+# Split data into training and testing sets
+set.seed(42)
+trainIndex <- createDataPartition(df_balanced$Diverted, p = .8, list = FALSE, times = 1)
+trainData <- df_balanced[trainIndex, ]
+testData <- df_balanced[-trainIndex, ]
+
+# Define the model training and evaluation function
+train_and_evaluate_logistic_regression <- function(trainData, testData) {
+  model <- glm(Diverted ~ ., data = trainData, family = binomial())
+  
+  # Predict on test data
+  predictions <- predict(model, newdata = testData, type = "response")
+  
+  # Compute AUC
+  roc_result <- roc(response = testData$Diverted, predictor = predictions)
+  auc_value <- auc(roc_result)
+  
+  # Return model coefficients and AUC
+  list(Coefficients = coef(model), AUC = auc_value)
+}
+
+# Apply the function for each year and store results
+results_list <- list()
+unique_years <- unique(trainData$Year)
+
+for(year in unique_years) {
+  trainData_year <- trainData[Year == year, ]
+  testData_year <- testData[Year == year, ]
+  results_list[[as.character(year)]] <- train_and_evaluate_logistic_regression(trainData_year, testData_year)
+}
+
+# Output results
+for(year in names(results_list)) {
+  cat("\nYear:", year, "\n")
+  print(results_list[[year]]$Coefficients)
+  cat("AUC:", results_list[[year]]$AUC, "\n")
+}
+```
+
+```{r Q2C MODELv2 - ROC Curve No Legend}
+
+# #This code is Deprecated!
+# # Clear existing workspace
+# rm(list = ls())
+# 
+# # Load necessary libraries
+# library(data.table)
+# library(caret)
+# library(pROC)
+# 
+# # Load the dataset
+# df <- fread('/Users/nikolaijaniszewsky/Desktop/My_Stuff/UOL_Course_Content/Academia/2024/ST2195/ST2195_coursework/raw_data/complete-airplane-feature-set-R.csv')
+# 
+# # Select required columns and ensure it's a data.table
+# selected_df <- df[, .(Year, Month, DayOfWeek, CRSArrTime, CRSDepTime, Distance, DivertedCount_pct_Dest, DepDelayCount_pct_Dest, ArrDelayCount_pct_Dest, Carrier_pct_Diverted_UniqueCarrier, Diverted)]
+# 
+# # Preprocess "Distance" using range scaling
+# preProcValues <- preProcess(selected_df[, .(Distance)], method = c("range"))
+# selected_df[, Distance := predict(preProcValues, selected_df[, .(Distance)])$Distance]
+# 
+# # Prepare for downsampling
+# set.seed(42)  # For reproducibility
+# diverted_by_year <- split(selected_df[Diverted == 1], by = "Year")
+# 
+# # Downsample and combine datasets
+# downsampled_list <- lapply(names(diverted_by_year), function(year) {
+#   non_diverted <- selected_df[Year == year & Diverted == 0]
+#   num_to_sample <- min(nrow(non_diverted), 4 * nrow(diverted_by_year[[year]]))
+#   if (num_to_sample > 0) {
+#     rbindlist(list(non_diverted[sample(.N, num_to_sample)], diverted_by_year[[year]]))
+#   }
+# })
+# 
+# df_balanced <- rbindlist(downsampled_list)
+# 
+# # Ensure unique_years is defined correctly
+# unique_years <- unique(df_balanced$Year)
+# 
+# # Split data into training and testing sets
+# set.seed(42)
+# trainIndex <- createDataPartition(df_balanced$Diverted, p = .8, list = FALSE, times = 1)
+# trainData <- df_balanced[trainIndex, ]
+# testData <- df_balanced[-trainIndex, ]
+# 
+# # Define the model training and evaluation function
+# train_and_evaluate_logistic_regression <- function(trainData, testData) {
+#   # Try to catch any error during model fitting
+#   tryCatch({
+#     model <- glm(Diverted ~ ., data = trainData, family = binomial())
+# 
+#     # Predict on test data
+#     predictions <- predict(model, newdata = testData, type = "response")
+# 
+#     # Compute AUC
+#     roc_result <- roc(response = testData$Diverted, predictor = predictions)
+#     auc_value <- auc(roc_result)
+# 
+#     # Return model, coefficients, and AUC
+#     return(list(model = model, Coefficients = coef(model), AUC = auc_value))
+#   }, error = function(e) {
+#     # If an error occurs, return NULL model
+#     cat("Error in model training: ", e$message, "\n")
+#     return(list(model = NULL, Coefficients = NULL, AUC = NULL))
+#   })
+# }
+# 
+# # Re-run the loop to populate results_list
+# results_list <- list()
+# for(year in unique_years) {
+#   trainData_year <- trainData[Year == year, ]
+#   testData_year <- testData[Year == year, ]
+#   results_list[[as.character(year)]] <- train_and_evaluate_logistic_regression(trainData_year, testData_year)
+# }
+# 
+# # Check before proceeding
+# any(sapply(results_list, function(x) is.null(x$model)))
+# 
+# # Output results
+# for(year in names(results_list)) {
+#   cat("\nYear:", year, "\n")
+#   print(results_list[[year]]$Coefficients)
+#   cat("AUC:", results_list[[year]]$AUC, "\n")
+# }
+# 
+# # Initialize an empty list to store ROC data for each year
+# roc_data_list <- list()
+# 
+# # Iterate over each year, train and evaluate logistic regression, store ROC data
+# for(year in unique_years) {
+#   trainData_year <- trainData[Year == year, ]
+#   testData_year <- testData[Year == year, ]
+# 
+#   # Train and evaluate model
+#   eval_results <- train_and_evaluate_logistic_regression(trainData_year, testData_year)
+# 
+#   # Generate ROC data
+#   predictions <- predict(eval_results$model, newdata = testData_year, type = "response")
+#   roc_result <- roc(response = testData_year$Diverted, predictor = predictions)
+# 
+#   # Store TPR, FPR, and AUC for plotting
+#   roc_data <- data.frame(TPR = roc_result$sensitivities,
+#                          FPR = 1 - roc_result$specificities, # Note: Specificity is 1 - FPR
+#                          AUC = rep(auc(roc_result), length(roc_result$sensitivities)), # Replicate AUC value
+#                          Year = rep(year, length(roc_result$sensitivities)))
+#   roc_data_list[[as.character(year)]] <- roc_data
+# }
+# 
+# # Combine all ROC data into one data frame
+# roc_data_combined <- do.call(rbind, roc_data_list)
+# 
+# # Plot ROC curves for each year on a single plot
+# roc_curve <- ggplot(roc_data_combined, aes(x = FPR, y = TPR, color = as.factor(Year))) +
+#   geom_line() +
+#   geom_abline(linetype="dotted", color="gray", slope = 1, intercept = 0) +
+#   geom_text(data = subset(roc_data_combined, FPR < 0.1 & TPR > 0.8), aes(label = paste("AUC:", round(AUC, 3))), hjust = 1, vjust = 0) +
+#   scale_color_manual(values = c("blue", "orange", "green", "red")) +
+#   labs(title = "ROC Curves by Year",
+#        x = "False Positive Rate (FPR)",
+#        y = "True Positive Rate (TPR)",
+#        color = "Year") +
+#   theme_minimal()
+# 
+# ggsave("/Users/nikolaijaniszewsky/Desktop/My_Stuff/UOL_Course_Content/Academia/2024/ST2195/ST2195_coursework/submission/R-2C-ROC-2004-2007-EXP.png", plot = roc_curve, width = 10, height = 8)
+
+```
+
+
+
+
+
+
+
+
+
+
+```{r Q2C MODELv3 - Full Legend - Part 6.2}
+# Clear existing workspace
+rm(list = ls())
+
+# Load necessary libraries
+library(data.table)
+library(caret)
+library(pROC)
+
+# Load the dataset
+df <- fread('./complete-airplane-feature-set-R.csv')
+
+# Select required columns and ensure it's a data.table
+selected_df <- df[, .(Year, Month, DayOfWeek, CRSArrTime, CRSDepTime, Distance, DivertedCount_pct_Dest, DepDelayCount_pct_Dest, ArrDelayCount_pct_Dest, Carrier_pct_Diverted_UniqueCarrier, Diverted)]
+
+# Preprocess "Distance" using range scaling
+preProcValues <- preProcess(selected_df[, .(Distance)], method = c("range"))
+selected_df[, Distance := predict(preProcValues, selected_df[, .(Distance)])$Distance]
+
+# Prepare for downsampling
+set.seed(42)  # For reproducibility
+diverted_by_year <- split(selected_df[Diverted == 1], by = "Year")
+
+# Downsample and combine datasets
+downsampled_list <- lapply(names(diverted_by_year), function(year) {
+  non_diverted <- selected_df[Year == year & Diverted == 0]
+  num_to_sample <- min(nrow(non_diverted), 10 * nrow(diverted_by_year[[year]]))
+  if (num_to_sample > 0) {
+    rbindlist(list(non_diverted[sample(.N, num_to_sample)], diverted_by_year[[year]]))
+  }
+})
+
+df_balanced <- rbindlist(downsampled_list)
+
+# Ensure unique_years is defined correctly
+unique_years <- unique(df_balanced$Year)
+
+# Split data into training and testing sets
+set.seed(42)
+trainIndex <- createDataPartition(df_balanced$Diverted, p = .8, list = FALSE, times = 1)
+trainData <- df_balanced[trainIndex, ]
+testData <- df_balanced[-trainIndex, ]
+
+# Define the model training and evaluation function
+train_and_evaluate_logistic_regression <- function(trainData, testData) {
+  # Try to catch any error during model fitting
+  tryCatch({
+    model <- glm(Diverted ~ ., data = trainData, family = binomial())
+    
+    # Predict on test data
+    predictions <- predict(model, newdata = testData, type = "response")
+    
+    # Compute AUC
+    roc_result <- roc(response = testData$Diverted, predictor = predictions)
+    auc_value <- auc(roc_result)
+    
+    # Return model, coefficients, and AUC
+    return(list(model = model, Coefficients = coef(model), AUC = auc_value))
+  }, error = function(e) {
+    # If an error occurs, return NULL model
+    cat("Error in model training: ", e$message, "\n")
+    return(list(model = NULL, Coefficients = NULL, AUC = NULL))
+  })
+}
+
+# Re-run the loop to populate results_list
+results_list <- list()
+for(year in unique_years) {
+  trainData_year <- trainData[Year == year, ]
+  testData_year <- testData[Year == year, ]
+  results_list[[as.character(year)]] <- train_and_evaluate_logistic_regression(trainData_year, testData_year)
+}
+
+# Check before proceeding
+any(sapply(results_list, function(x) is.null(x$model)))
+
+# Output results
+for(year in names(results_list)) {
+  cat("\nYear:", year, "\n")
+  print(results_list[[year]]$Coefficients)
+  cat("AUC:", results_list[[year]]$AUC, "\n")
+}
+
+# Initialize an empty list to store ROC data for each year
+roc_data_list <- list()
+
+# Iterate over each year, train and evaluate logistic regression, store ROC data
+for(year in unique_years) {
+  trainData_year <- trainData[Year == year, ]
+  testData_year <- testData[Year == year, ]
+  
+  # Train and evaluate model
+  eval_results <- train_and_evaluate_logistic_regression(trainData_year, testData_year)
+  
+  # Generate ROC data
+  predictions <- predict(eval_results$model, newdata = testData_year, type = "response")
+  roc_result <- roc(response = testData_year$Diverted, predictor = predictions)
+  
+  # Store TPR, FPR, and AUC for plotting
+  roc_data <- data.frame(TPR = roc_result$sensitivities,
+                         FPR = 1 - roc_result$specificities, # Note: Specificity is 1 - FPR
+                         AUC = rep(auc(roc_result), length(roc_result$sensitivities)), # Replicate AUC value
+                         Year = rep(year, length(roc_result$sensitivities)))
+  roc_data_list[[as.character(year)]] <- roc_data
+}
+
+# Combine all ROC data into one data frame
+roc_data_combined <- do.call(rbind, roc_data_list)
+
+# Calculate AUC for each Year
+average_auc_per_year <- aggregate(AUC ~ Year, data = roc_data_combined, FUN=mean)
+
+# Prepare the annotation text
+annotation_text <- paste("ROC curve for Year", average_auc_per_year$Year, 
+                         "(area=", round(average_auc_per_year$AUC, 3), ")", sep=" ")
+
+spacing <- 0.05
+average_auc_per_year$y_pos <- seq(1, by=-spacing, length.out=nrow(average_auc_per_year))
+
+# Define 'tab20' colors manually in hex
+tab20_colors <- c("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", 
+                  "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+                  "#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5",
+                  "#c49c94", "#f7b6d2", "#c7c7c7", "#dbdb8d", "#9edae5")
+#I needed to use a separate vector of hex codes for colouring the barplot.....this is so that the colours match up with the colours of the bars form the python code....
+tab20_colors2 <- c("#9467bd", "#c5b0d5", "#9edae5", "#ff7f0e", "#8c564b", 
+                  "#d62728", "#2ca02c", "#98df8a", "#1f77b4", "#17becf",
+                  "#aec7e8", "#ffbb78", "#7f7f7f", "#ff9896", "#bcbd22",
+                  "#c49c94", "#f7b6d2", "#c7c7c7", "#dbdb8d", "#e377c2")
+
+# Placeholder for all AUC scores across all folds and years
+all_auc_scores <- numeric()
+for(year in unique_years) {
+  trainData_year <- trainData[Year == year, ]
+  testData_year <- testData[Year == year, ]
+  # Create 10 folds
+  set.seed(42) 
+  folds <- createFolds(trainData_year$Diverted, k = 10, list = TRUE, returnTrain = TRUE)
+  # Placeholder for AUC scores
+  auc_scores <- numeric(length(folds))
+  for(i in seq_along(folds)) {
+    # Split data based on folds
+    train_fold <- trainData_year[folds[[i]], ]
+    test_fold <- testData_year[-folds[[i]], ]
+    # training
+    model <- glm(Diverted ~ ., data = train_fold, family = binomial())
+    predictions <- predict(model, newdata = test_fold, type = "response")
+    
+    # Compute AUC
+    roc_result <- roc(response = test_fold$Diverted, predictor = predictions)
+    auc_scores[i] <- auc(roc_result)
+  }
+  
+  # Append the AUC scores for the current year to the overall list of AUC scores
+  all_auc_scores <- c(all_auc_scores, auc_scores)
+}
+# Overall average AUC score
+overall_avg_auc <- mean(all_auc_scores)
+cat(sprintf("Overall Average AUC: %f\n", overall_avg_auc))
+
+# Adjust the 'x' and 'y' aesthetics to use the new 'y_pos' for positioning
+# Note: You might need to adjust the 'vjust' and 'nudge_y' for your specific plot
+p <- ggplot(roc_data_combined, aes(x = FPR, y = TPR, color = as.factor(Year))) +
+  geom_line() +
+  geom_abline(linetype="dotted", color="black", slope = 1, intercept = 0) +
+  scale_color_manual(values = tab20_colors) + # Use the 'tab20' colors
+  labs(title = "ROC Curves by Year",
+       x = "False Positive Rate (FPR)",
+       y = "True Positive Rate (TPR)",
+       color = "Year") +
+  theme_minimal() +
+  geom_text(data=average_auc_per_year, aes(x=1, y=y_pos, label=paste("ROC curve for Year", Year, "(area=", round(AUC, 3), ")", sep=" ")), 
+            hjust=1.1, position = position_nudge(x = 1.05), size=3, check_overlap = TRUE)
+
+p <- p + annotate("text", x = min(roc_data_combined$FPR), y = max(roc_data_combined$TPR), label = sprintf("Average AUC Score across 10 folds: %.2f", overall_avg_auc), hjust=0, vjust=1, size=3, color="black")
+
+print(p)
+
+dir_path <- './r_images'
+if(!dir.exists(dir_path)) {
+  dir.create(dir_path, recursive=TRUE)
+}
+
+ggsave("./r_images/R_2C_ROC.png", plot = p, width = 10, height = 8)
+
+```
+
+```{r Q2C Final Coefficient Plot...Plotting barplot - Part 6.3}
+#Here we used the data from Q2C MODELv1
+library(ggplot2)
+library(dplyr)
+
+# Initialize an empty data frame for storing the results
+plot_data <- data.frame(Year = character(), 
+                        Predictor = character(), 
+                        Coefficient = numeric(), 
+                        stringsAsFactors = FALSE)
+
+# Loop through each year in the results_list and extract coefficients
+for(year in names(results_list)) {
+  coeffs <- results_list[[year]]$Coefficients
+  # Convert to dataframe and add to plot_data
+  year_data <- data.frame(Predictor = names(coeffs), Coefficient = as.numeric(coeffs))
+  year_data$Year <- year
+  plot_data <- rbind(plot_data, year_data)
+}
+
+# Filter out the intercept and ensure we only include the desired predictors
+plot_data <- plot_data[plot_data$Predictor %in% c("Month", "DayOfWeek", "CRSArrTime", "CRSDepTime", "Distance", "DivertedCount_pct_Dest", "DepDelayCount_pct_Dest", "ArrDelayCount_pct_Dest", "Carrier_pct_Diverted_UniqueCarrier", "Diverted"), ]
+
+# Plotting
+barplot <- ggplot(plot_data, aes(x = Year, y = Coefficient, fill = Predictor)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(title = "Logistic Regression Coefficients Across Years",
+       x = "Year",
+       y = "Coefficient") +
+  scale_fill_manual(values = tab20_colors2[1:length(unique(plot_data$Predictor))]) +  # Use tab20_colors2
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(barplot)
+dir_path <- './r_images'
+if(!dir.exists(dir_path)) {
+  dir.create(dir_path, recursive=TRUE)
+}
+
+ggsave("./r_images/R_2C_LogisticRegression.png", plot=barplot, width = 10, height = 5)
+
+```
+
+
+```{r - Part 7 - The Average Coefficients}
+
+# Assuming results_list is your list of models for different years
+# and feature_names includes all feature names
+
+all_coeffs <- list()
+
+# Extract coefficients for each year and store in all_coeffs
+for(i in 1:length(results_list)) {
+  coefs <- results_list[[i]]$Coefficients
+  # Remove the intercept if present
+  if("`(Intercept)`" %in% names(coefs)) {
+    coefs <- coefs[-1]
+  }
+  all_coeffs[[i]] <- coefs
+}
+
+# Assuming all models have the same predictors, use the first model to establish the order
+reference_coefs <- all_coeffs[[1]]
+# Initialize a named numeric vector to store sum of coefficients for each predictor
+sum_coefs <- setNames(numeric(length(reference_coefs)), names(reference_coefs))
+
+# Sum up coefficients for each predictor across all years
+for(coefs in all_coeffs) {
+  sum_coefs <- sum_coefs + coefs
+}
+
+# Calculate the average coefficient for each predictor
+avg_coefs <- sum_coefs / length(all_coeffs)
+
+ordered_predictors <- c("Month", "CRSArrTime", "CRSDepTime", "Distance", "DivertedCount_pct_Dest", "DepDelayCount_pct_Dest", "ArrDelayCount_pct_Dest", "Carrier_pct_Diverted_UniqueCarrier")
+# Print the average coefficients
+cat("Average Coefficents:\n")
+for(predictor in ordered_predictors) {
+    cat(predictor, ":", avg_coefs[predictor], "\n")
+}
+
+```
+
+```{r - Part 8 - Improving The Model by tuning hyperparameters}
+library(glmnet)
+if (!requireNamespace("glmnet", quietly = TRUE)) {
+    install.packages("glmnet")
+}
+# Convert to matrix form for glmnet
+X_train <- model.matrix(Diverted ~ . - 1, data = trainData) # '-1' to exclude intercept
+y_train <- trainData$Diverted
+
+X_test <- model.matrix(Diverted ~ . - 1, data = testData)
+y_test <- testData$Diverted
+
+
+# Run glmnet
+set.seed(42) # For reproducible results
+cv_fit <- cv.glmnet(X_train, y_train, family = "binomial", type.measure = "auc",
+                    alpha = 1) # Set alpha=1 for lasso; alpha=0 for ridge
+
+# Plot to see which lambda is best according to cross-validation
+plot(cv_fit)
+
+# Run glmnet
+set.seed(42) # For reproducible results
+cv_fit <- cv.glmnet(X_train, y_train, family = "binomial", type.measure = "auc",
+                    alpha = 1) # Set alpha=1 for lasso; alpha=0 for ridge
+
+# Plot to see which lambda is best according to cross-validation
+plot(cv_fit)
+
+
+```
