@@ -338,8 +338,8 @@ for (year in subset_of_years) {
       y.Month,
       y.DayofMonth, 
       y.DayOfWeek, 
-      (y.CRSArrTime)/10000 AS CRSArrTime, 
-      (y.CRSDepTime)/10000 AS CRSDepTime, 
+      CAST(y.CRSArrTime AS REAL)/10000 AS CRSArrTime, 
+      CAST(y.CRSDepTime AS REAL)/10000 AS CRSDepTime, 
       y.UniqueCarrier, 
       y.Distance, 
       y.Origin,
@@ -386,6 +386,7 @@ for (year in subset_of_years) {
   # df_core_features <- dep_arr_delaylength_merge_with_suffix(df_core_features, df_ranked_deplength_2004_2007, 'Origin', 'DepDelayLength')
   # df_core_features <- dep_arr_delaylength_merge_with_suffix(df_core_features, df_ranked_arrlength_2004_2007, 'Dest', 'ArrDelayLength')
   
+  
   # Print statements for each merge operation
   print(paste("Merges for year", year, "completed."))
 
@@ -398,6 +399,7 @@ for (year in subset_of_years) {
 
 # Concatenate, clean up, and export
 df_complete_airplane_features <- rbindlist(temp_storage_ranked_5, fill = TRUE)
+print(head(df_complete_airplane_features, 5))
 fwrite(df_complete_airplane_features, "./complete-airplane-feature-set-R.csv", verbose = TRUE)
 
 # Final garbage collection
@@ -414,7 +416,9 @@ print(paste("Data processing complete. Exported", nrow(df_complete_airplane_feat
 
 ```{r Q2C Part 4}
 #Need to free up memory for this
-rm(list = ls())
+exempt_vars <- c("df_ranked_divertedcount_2004_2007", "df_complete_airplane_features_final", "sum_diverted_count")
+workspace_vars <- ls()
+rm(list = setdiff(workspace_vars, exempt_vars)) # Remove all objects except the exempt ones
 
 library(data.table)
 
@@ -477,7 +481,7 @@ cat('This is the % of our sample that observed the phenomenon:', round(percentag
 
 # ii. Model training and visualising the coefficients across years...
 
-```{r Q2C MODELv1 - ROC-AUC and coefficients...which we have to use for plotting the bar plot - Part 6.1}
+```{r Q2C - ROC-AUC and coefficients...which we have to use for plotting the bar plot - Part 6.0}
 # Clear existing workspace
 rm(list = ls())
 
@@ -686,7 +690,7 @@ for(year in names(results_list)) {
 
 
 
-```{r Q2C MODELv3 - Full Legend - Part 6.2}
+```{r Q2C MODELv3 - ROC Visualisation with Full Legend - Part 6.1}
 # Clear existing workspace
 rm(list = ls())
 
@@ -873,7 +877,7 @@ ggsave("./r_images/R_2C_ROC.png", plot = p, width = 10, height = 8)
 
 ```
 
-```{r Q2C Final Coefficient Plot...Plotting barplot - Part 6.3}
+```{r Q2C Final Coefficient Plot...Plotting barplot - Part 6.2}
 #Here we used the data from Q2C MODELv1
 library(ggplot2)
 library(dplyr)

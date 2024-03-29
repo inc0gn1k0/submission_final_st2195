@@ -33,8 +33,10 @@ Hi Mr./Ms. Examiner,
 	- Type the letter R and press enter in terminal
 	- `install.packages('RSQLite')`
 	
-- (Recommended!) Install the latest version of Rstudio from https://posit.co/download/rstudio-desktop/ 
+(Recommended!) 
+- Install the latest version of Rstudio from https://posit.co/download/rstudio-desktop/ 
 - Rstudio will prompt you to automatically install all R dependencies once you open the r notebooks in it.
+- Please make sure you have Python 3.12.* installed and dataframe_image 0.2.3 (activate the env and install it using pip) nstalled before running any of the python notebooks! 
 
 
 ### Setting up the Databases for Part 2 of the Analysis Task:
@@ -69,6 +71,9 @@ submission_final/
 │   └── r_images
 ├── raw_data/
 │   └── (Detailed instructions to access or download data into the raw_data folder)
-└── README.md
+├── .gitignore
+├── FINAL_REPORT_SRN190341259_.pdf
+├── README.md
+└── environment.yml
 
 ```
