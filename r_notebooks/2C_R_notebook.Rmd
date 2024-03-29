@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## To access the project files to run this notebook
 
-Check github (link: ) to access the entire project folder.
+Check github (link: https://github.com/inc0gn1k0/submission_final_st2195.git) to access the entire project folder.
 
 
 ## **3.** Plotting a logistic regression model for the probability of diverted US Flights 
@@ -19,9 +19,41 @@ Check github (link: ) to access the entire project folder.
 ```
 Analysis Recipe:
 
-For each year...
-using as many features as possible 
-from attributes of the departure date, the scheduled departure and arrival times, the coordinates and distance between departure and planned arrival airports, and the carrier. 
+1. **Database Connection**
+   - Libraries: DBI, RSQLite
+   - Connect to local SQLite database.
+
+2. **Data Querying and Aggregation**
+   - Iterate over years, executing SQL queries.
+   - Aggregate diverted flights and carrier data.
+
+3. **Feature Preparation**
+   - Calculate percentages for diverted counts.
+   - Rank airports and carriers by diverted counts.
+
+4. **Data Merging and Cleaning**
+   - Join features to core dataset using `dplyr::left_join`.
+   - Clean and preprocess data for modeling.
+
+5. **Model Training**
+   - Libraries: caret, pROC for modeling and evaluation.
+   - Train logistic regression models, evaluate with ROC-AUC.
+
+6. **Visualization**
+   - Libraries: ggplot2 for plotting.
+   - Generate ROC curves, coefficient bar plots.
+
+7. **Hyperparameter Tuning**
+   - Library: glmnet for Lasso regression.
+   - Optimize model with cross-validation.
+
+8. **Analysis and Insights**
+   - Analyze coefficients, ROC curves.
+   - Draw insights from model performance across years.
+
+9. **Cleanup**
+   - Close database connections.
+   - Clear variables to free up memory.
 
 ```
 
@@ -117,7 +149,6 @@ print(tail(df_ranked_carrier_diverted_2004_2007, 13))
 dbDisconnect(conn)
 
 ```
-
 
 ```{r Q2C Part 2}
 #ArrDelayCount and DepDelayCount percentage based features preparation
@@ -433,7 +464,7 @@ cat('This is the number of diverted flights between 2004 and 2007:', sum_diverte
 # Calculate the total number of rows in your final data frame
 sum_sample_space <- nrow(df_complete_airplane_features_final)
 
-cat(,'\n','This is the total size of our training/test split data:', sum_sample_space, '\n')
+cat('\n','This is the total size of our training/test split data:', sum_sample_space, '\n')
 
 # Calculate the percentage of diverted flights
 percentage_of_sample_space <- (sum_diverted_count / sum_sample_space) * 100

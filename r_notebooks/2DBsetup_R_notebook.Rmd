@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## To access the project files to run this notebook
 
-Check github (link: ) to access the entire project folder.
+Check github (link: https://github.com/inc0gn1k0/submission_final_st2195.git) to access the entire project folder.
 
 ```{r Database Setup (Relative Paths)}
 library(DBI)

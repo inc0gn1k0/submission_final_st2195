@@ -11,12 +11,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## To access the project files to run this notebook
 
-Check github (link: ) to access the entire project folder.
+Check github (link: https://github.com/inc0gn1k0/submission_final_st2195.git) to access the entire project folder.
 
 # Objective (1B): 
 
-i. Calculate the Rb for the random walk Metropolis algorithm with N = 2000, s = 0.001 and J = 4. 
-ii. Keeping N and J fixed, provide a plot of the values of Rb over a grid of s values in the interval between 0.001 and 1.
+  i. Calculate the Rb for the random walk Metropolis algorithm with N = 2000, s = 0.001 and J = 4. 
+  ii. Keeping N and J fixed, provide a plot of the values of Rb over a grid of s values in the interval between 0.001 and 1.
 
 ```{r Q1B}
 library(ggplot2)

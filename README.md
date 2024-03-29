@@ -19,9 +19,10 @@ Hi Mr./Ms. Examiner,
 
 ###  How to recreate my condas environment
 
-1. Navigate to the path where you cloned submission_final folder from the repo link using terminal or cmd prompt
-2. Within terminal or cmd prompt: `conda env create -f environment.yml`
-3. Activate the environment in terminal: `conda activate submission_final`
+1. Make sure you have installed rust (Download Rust, and installconda if you haven't: https://rustup.rs/)
+2. Navigate to the path where you cloned submission_final folder from the repo link using terminal or cmd prompt
+3. Within terminal or cmd prompt: `conda env create -f environment.yml`
+4. Activate the environment in terminal: `conda activate submission_final`
 	- You can also activate the condas environment from within VS code or any other notebook editor locally on your machine by selecting it at runtime (select submission_final at runtime)
 
 ### Dependencies not covered by my condas environment
@@ -33,10 +34,10 @@ Hi Mr./Ms. Examiner,
 	- `install.packages('RSQLite')`
 	
 - (Recommended!) Install the latest version of Rstudio from https://posit.co/download/rstudio-desktop/ 
-- Rstudio automatically installs all R dependencies.
+- Rstudio will prompt you to automatically install all R dependencies once you open the r notebooks in it.
 
 
-### How to seamlessly run the notebooks:
+### Setting up the Databases for Part 2 of the Analysis Task:
 
 1. Download or Copy the Harvard Dataverse .csv files (>12GB of data) into the empty raw_data folder (https://doi.org/10.7910/DVN/HG7NV7 - there are 26 individual files in total)
 2. Navigate to python_notebooks folder and run the 2DBSetup_python.ipynb notebook or navigate to r_notebooks folder and run the 2DBsetup_R_notebook.Rmd notebook to setup the comp97to07.db database...

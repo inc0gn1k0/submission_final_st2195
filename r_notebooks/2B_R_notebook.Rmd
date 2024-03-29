@@ -11,14 +11,36 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## To access the project files to run this notebook
 
-Check github (link: ) to access the entire project folder.
+Check github (link: https://github.com/inc0gn1k0/submission_final_st2195.git) to access the entire project folder.
 
 ## **2B** Do older planes suffer more delays?
 
 ```
 Analysis Recipe:
 
+1. **Database Connection and Setup**:
+   - Utilize `library(DBI)` and `library(RSQLite)` for database connection.
+   - Use relative paths for database access to ensure code portability.
 
+2. **Data Preparation**:
+   - Perform data checks and prepare subsets with `dplyr`.
+   - Employ SQL queries for data extraction focused on delays.
+
+3. **Aggregation and Data Manipulation**:
+   - Use SQL for aggregations and join operations.
+   - Apply `dplyr` for data frame manipulations and aggregations.
+
+4. **Analysis and Insights**:
+   - Conduct linear regression analysis with `lm()` to explore trends.
+   - Calculate weighted averages and delay percentages for insight.
+
+5. **Visualization**:
+   - Generate plots with `ggplot2` for trend visualization.
+   - Annotate regression model statistics on plots for clarity.
+
+6. **Cleanup and Documentation**:
+   - Disconnect from the database with `dbDisconnect()`.
+   - Document steps and findings throughout the script.
 
 ```
 
@@ -81,7 +103,7 @@ for (i in subset_of_years) {
       SUM(CASE WHEN y.DepDelay >= 15 THEN 1 ELSE 0 END) AS CountDepDelay
     FROM Y%d y
     INNER JOIN planes p ON y.tailnum = p.tailnum 
-    WHERE p.year <= %d AND p.year IS NOT NULL AND p.year != 0 AND Cancelled != 1
+    WHERE p.year <= %d AND p.year IS NOT NULL AND p.year != '0000' AND p.year != '' AND p.year != 'None' AND p.year > 0 AND Cancelled != 1
     GROUP BY p.year
     ORDER BY p.year", i, max_year)
   
@@ -132,7 +154,7 @@ for (i in subset_of_years) {
         1.0 * SUM(CASE WHEN y.DepDelay >= 15 THEN 1 ELSE 0 END) / COUNT(y.tailnum) as PercentDepDelay
     FROM Y%d y
     INNER JOIN planes p ON y.tailnum = p.tailnum 
-    WHERE p.year <= %d AND p.year IS NOT NULL AND p.year != 0 AND Cancelled != 1
+    WHERE p.year <= %d AND p.year IS NOT NULL AND p.year != '0000' AND p.year != '' AND p.year != 'None' AND p.year > 0 AND Cancelled != 1
     GROUP BY p.year
     ORDER BY p.year", i, max_year)
 
@@ -243,10 +265,7 @@ for (i in subset_of_years) {
         ROUND(SUM(y.DepDelay * (y.DepDelay / (y.ArrDelay + y.DepDelay))) / SUM(y.DepDelay / (y.ArrDelay + y.DepDelay)),0) AS WeightedAvgDepDelay
     FROM Y%d y
     INNER JOIN planes p ON y.tailnum = p.tailnum
-    WHERE (y.ArrDelay >= 15 AND y.DepDelay >= 15) 
-        AND p.year IS NOT NULL 
-        AND p.year != 0
-        AND p.year <= %d
+    WHERE (y.ArrDelay >= 15 AND y.DepDelay >= 15) AND p.year <= %d AND p.year IS NOT NULL AND p.year != '0000' AND p.year != '' AND p.year != 'None' AND p.year > 0 AND Cancelled != 1
     GROUP BY p.year
     ORDER BY p.year", i, max_year)
   
@@ -256,18 +275,25 @@ for (i in subset_of_years) {
 
 combined_df <- do.call(rbind, all_years_df)
 
+print(combined_df)
+
 # Adding a constant column for linear regression intercept
 combined_df$const <- 1
 
+#convert YoM explicitltly to numeric....to avoid issues on windows machines...
+combined_df$YoM <- as.numeric(combined_df$YoM)
+
 # Regression for Arrival Delay
-model_arr <- lm(WeightedAvgArrDelay ~ YoM + const, data = combined_df)
+model_arr <- lm(WeightedAvgArrDelay ~ YoM, data = combined_df)
 
 # Regression for Departure Delay
-model_dep <- lm(WeightedAvgDepDelay ~ YoM + const, data = combined_df)
+model_dep <- lm(WeightedAvgDepDelay ~ YoM, data = combined_df)
 
 # Extract key regression statistics
 summary_arr <- summary(model_arr)
 summary_dep <- summary(model_dep)
+
+print(summary_arr)
 
 # Arrival Delays Visualization
 arr_len_plot <- ggplot(combined_df, aes(x = YoM, y = WeightedAvgArrDelay)) +
@@ -336,6 +362,10 @@ for (i in subset_of_years) {
     WHERE
       p.year <= %d AND
       CAST(SUBSTR(p.issue_date, -4) AS INTEGER) <= %d AND
+      p.year IS NOT NULL AND 
+      p.year != '0000' AND 
+      p.year != '' AND 
+      p.year != 'None' AND
       y.Cancelled != 1
     GROUP BY 
       Age
@@ -359,6 +389,9 @@ final_aggregated_df <- combined_df_age %>% #here I used the magrittr pipe, which
     Delays_Per_Flight = sum(DelayIncidents) / sum(Number_of_Flights)
   )
 
+
+final_aggregated_df <- head(final_aggregated_df, 32)
+
 print(head(final_aggregated_df, 20))
 print(tail(final_aggregated_df, 20))
 
@@ -376,7 +409,7 @@ r_squared <- summary_model$r.squared
 plot <- ggplot(final_aggregated_df, aes(x = Age, y = Delays_Per_Flight)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "lm", color = "red") +
-  labs(title = paste("AggregateDelayIncidence%Flights vs. Age of Planes",min(subset_of_years),'-',max(subset_of_years)), x = "Age of Planes (Years)", y = "Delays%Flights") +
+  labs(title = paste("ArrDelay+DepDelay Incidence as a % of Flights vs. Age of Planes",min(subset_of_years),'-',max(subset_of_years)), x = "Age of Planes (Years)", y = "Delays%Flights") +
   theme_minimal() +
   theme(plot.margin = margin(1, 1, 1, 1, "cm")) +  # Adjust plot margins (top, right, bottom, left)
   annotate("text", x = Inf, y = 0, label = sprintf("Slope: %.3f\nP-Value: %.3g\nR-Squared: %.3g", slope, p_value, r_squared),

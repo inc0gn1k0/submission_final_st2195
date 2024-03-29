@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## To access the project files to run this notebook
 
-Check github (link: ) to access the entire project folder.
+Check github (link: https://github.com/inc0gn1k0/submission_final_st2195.git) to access the entire project folder.
 
 ## **2A** When is the best time of day, day of the week, and time of year to fly to minimise delays?
 
