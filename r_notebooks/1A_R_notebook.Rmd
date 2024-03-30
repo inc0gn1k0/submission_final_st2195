@@ -1,6 +1,6 @@
 ---
 title: "Question 1A Coursework"
-student_number: "SRN190341259"
+student_number: "190341259"
 date: "2023-12-06"
 output: html_document
 ---
@@ -34,7 +34,7 @@ random_walk_metropolis(N, s, x0)
 
 library(ggplot2)
 
-#Step 1: Set up the initial variables
+#Step 1 - Created these 3 functions in both python and R to generate our proposal distribution
 # Target distribution PDF
 f <- function(x) {
   return(0.5 * exp(-abs(x)))
@@ -45,17 +45,16 @@ log_f <- function(x) {
   return(log(0.5) - abs(x))
 }
 
-#Step 2: Use Random Walk Metropolis Algo
-
+#Step 2 - Use Random Walk Metropolis Algo
 # Random walk Metropolis algorithm
 random_walk_metropolis <- function(N, s, x0) {
-  samples <- numeric(N)
+  samples <- numeric(N) #generates a sample
   samples[1] <- x0  # initial value
   
   for (i in 2:N) {
-    x_star <- rnorm(1, mean = samples[i-1], sd = s)  # propose a new state
+    x_star <- rnorm(1, mean = samples[i-1], sd = s)  #propose a new step, by drawing a random variate from a normal distribution with location (mean) set to prev step, and scale set to our standard deviation that we set...
     log_r <- log_f(x_star) - log_f(samples[i-1])  # compute log of ratio
-    u <- log(runif(1))  # log of uniform random number for comparison
+    u <- log(runif(1))  #we generate a random variate from a uniform distribution (pdf with all values equally likely - a straight line), and take the log.
     
     if (u < log_r) {
       samples[i] <- x_star  # accept the new state
@@ -67,25 +66,25 @@ random_walk_metropolis <- function(N, s, x0) {
   return(samples)
 }
 
-#Generate Samples + Visualize
-# Parameters
+#Step 3 - Generate Samples + Visualize
+# Initial conditions stored as variables
 N <- 10000
-s <- 1
+s <- 1 #If s is too small then it will lead to shallow exploration (high autocorrelation), and too large it will lead to a high rejection rate. We set s such that we balance acceptance and exploration.
 x0 <- 0
 
 # Generate samples
 samples <- random_walk_metropolis(N, s, x0)
 
-# Calculate the sample mean and standard deviation
+# Calculate the sample monte carlo mean and standard deviation
 sample_mean <- mean(samples)
 sample_std <- sd(samples)
 
 # Visualization: Histogram and Kernel Density Estimate (KDE) with the Actual Distribution Overlay
 #What is a KDE: A technique used in statistics to create a smooth curve given a set of data. In the simplest terms, a KDE can be thought of as a smoothed version of a histogram, describing the distribution of a random variable. Its params are smoothness, kernel and bandwidth...
 plot <- ggplot(data.frame(x = samples), aes(x = x)) +
-  geom_histogram(aes(y = ..density.., fill = "Histogram"), bins = 30, alpha = 0.5) + # Assign fill within aes for legend
-  geom_density(aes(color = "KDE"), size = 1) + # Assign color within aes for legend
-  stat_function(fun = f, aes(color = "Target Distribution"), size = 1) + # Use aes for color to add to legend
+  geom_histogram(aes(y = ..density.., fill = "Histogram"), bins = 30, alpha = 0.5) + # #Use the generated samples $(x1, . . . xN )$ to construct a histogram...Assign fill within aes for legend
+  geom_density(aes(color = "KDE"), size = 1) + # Assign color within aes for legend, construcing a kernel density plot in the same figure. Hist + KDE provide estimates of f(x)
+  stat_function(fun = f, aes(color = "Target Distribution"), size = 1) + # Use aes for color to add to legend, plots f(x) on this figure to visualise the quality of the estimates.
   scale_fill_manual(name = "", values = "skyblue", labels = "Histogram") + # Manual scale for fill
   scale_color_manual(name = "", values = c("KDE" = "green", "Target Distribution" = "pink"), labels = c("KDE", "Target Distribution")) + # Manual scale for color
   labs(title = "Histogram and Kernel Density Estimate with f(x) Overlay",
@@ -96,6 +95,7 @@ plot <- ggplot(data.frame(x = samples), aes(x = x)) +
 
 print(plot)
 
+#Exporting the Image
 dir_path <- './r_images'
 
 if(!dir.exists(dir_path)) {

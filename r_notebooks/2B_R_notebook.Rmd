@@ -1,6 +1,6 @@
 ---
 title: "Question 2B - Coursework"
-student_number: "SRN190341259"
+student_number: "190341259"
 date: "2023-12-06"
 output: html_document
 ---
@@ -55,7 +55,7 @@ library(RSQLite)
 library(dplyr)
 
 # Connect to the database
-pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability....#the full path logic looks like --> go to current_dir then go to its parent then enter /raw_data/comp97to07.db
 conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
 
 # SQL query to retrieve rows with tailnum that have counts greater than 1
@@ -79,7 +79,7 @@ print(duplicated_tailnums_df)
 
 ```
 
-```{r Q2 Part 1}
+```{r Q2B Part 1 - NUMBER OF DELAYS for a given year of manufacturing for our date range}
 library(DBI)
 library(RSQLite)
 library(dplyr)
@@ -87,11 +87,12 @@ library(kableExtra)
 library(ggplot2)
 
 # Connect to the database
-pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability... #the full path logic looks like --> go to current_dir then go to its parent then enter /raw_data/comp97to07.db
 conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
 
 subset_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007)  #adjust this subset based on your compute resources available :).....the more years the more intense the computation.
 
+# Initialize total_counts_df with columns
 total_counts_df <- data.frame(YoM = integer(), CountArrDelay = integer(), CountDepDelay = integer())
 
 max_year <- max(subset_of_years)
@@ -128,7 +129,7 @@ dbDisconnect(conn)
 print(total_counts_df)
 ```
 
-```{r Q2 Part 2}
+```{r Q2B Part 2 -  Prepare a table for plotting, with all our variables of interest --> YoM, TotalFlights, TotalCountArrDelay, TotalCountDepDelay, PercentArrDelay, PercentDepDelay}
 library(DBI)
 library(RSQLite)
 library(dplyr)
@@ -136,7 +137,7 @@ library(ggplot2)
 library(glue) #ships by default with R
 
 # Connect to the database
-pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability...#the full path logic looks like --> go to current_dir then go to its parent then enter /raw_data/comp97to07.db
 conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
 
 subset_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007) #adjust this subset based on your compute resources available :).....the more years the more intense the computation.
@@ -189,11 +190,12 @@ print(final_df)
 
 ```
 
-```{r Q2 Part 3 - Visualization 1}
+```{r Q2B Part 3 - Visualization 1}
 
 #Below we use the tibble produced in the previous code block to plot PercentArrDelay vs YoM and PercentDepDelay vs YoM
 
-# Linear regression models
+#Visualisation of DELAY COUNT%FLIGHT COUNT (Measure of Delay Incidence)
+# Define dependent variables (responses) and fit model (R does it in one swift motion)
 model_arr_delay <- lm(PercentArrDelay ~ YoM, data = final_df)
 model_dep_delay <- lm(PercentDepDelay ~ YoM, data = final_df)
 
@@ -242,18 +244,19 @@ ggsave(filename = paste0("./r_images/R_2B3_DepDelay", min(subset_of_years),"-", 
 
 ```
 
-```{r Q2 Part 4 - Visualization 2}
+```{r Q2B Part 4 Weighted Average  - Visualization 2}
 
+#Here we used a Weighted average of the delay length in minutes instead of a count of delay incidents
 library(DBI)
 library(RSQLite)
 library(dplyr)
 library(ggplot2)
 
 # Connect to the database
-pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability...#the full path logic looks like --> go to current_dir then go to its parent then enter /raw_data/comp97to07.db
 conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
 
-subset_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007)
+subset_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007) # Adjust this list according to your compute resources available :)
 all_years_df <- list()
 
 max_year <- max(subset_of_years)
@@ -280,7 +283,7 @@ print(combined_df)
 # Adding a constant column for linear regression intercept
 combined_df$const <- 1
 
-#convert YoM explicitltly to numeric....to avoid issues on windows machines...
+#convert to numeric so that we dont have issues in windows environments...
 combined_df$YoM <- as.numeric(combined_df$YoM)
 
 # Regression for Arrival Delay
@@ -319,7 +322,7 @@ dep_len_plot <- ggplot(combined_df, aes(x = YoM, y = WeightedAvgDepDelay)) +
 
 print(arr_len_plot)
 
-#Check if image directory exists, if not, it is created
+#Image Export logic: Check if image directory exists, if not, it is created...
 dir_path <- './r_images'
 if(!dir.exists(dir_path)) {
   dir.create(dir_path, recursive=TRUE)
@@ -331,6 +334,18 @@ ggsave(paste0('./r_images/R_2B4_DepLength',min(subset_of_years),'-',max(subset_o
 
 dbDisconnect(conn)
 
+
+
+# The length (given by WeightedAvgArrDelay and WeightedAvgDepDelay) of the delays is shorter in duration the younger the planes.
+# 
+# 
+# Conclusion:
+# This suggests that the improved technology means that errors, when they do occur can be fixed more quickly, albeit 
+# tighter regulations and attention to safety means that younger planes are delayed more frequently.
+# More data is needed to test the fidelity of our hypothesis.
+
+
+
 ```
 
 ```{r Q2B Part 5 - Visualization 3}
@@ -340,10 +355,10 @@ library(dplyr)
 library(ggplot2)
 
 # Connect to the database
-pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability...#the full path logic looks like --> go to current_dir then go to its parent then enter /raw_data/comp97to07.db
 conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
 
-subset_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007)
+subset_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007) # Adjust this list according to your compute resources available :)
 all_years_df <- list()
 
 max_year <- max(subset_of_years)
@@ -389,7 +404,7 @@ final_aggregated_df <- combined_df_age %>% #here I used the magrittr pipe, which
     Delays_Per_Flight = sum(DelayIncidents) / sum(Number_of_Flights)
   )
 
-
+# Calculate Delays%Flights for aggregated values
 final_aggregated_df <- head(final_aggregated_df, 32)
 
 print(head(final_aggregated_df, 20))
@@ -397,9 +412,10 @@ print(tail(final_aggregated_df, 20))
 
 # Prepare the data for regression
 final_aggregated_df$Age <- as.numeric(final_aggregated_df$Age)
+# Perform the regression
 model <- lm(Delays_Per_Flight ~ Age, data = final_aggregated_df)
 
-# Extract regression summary details
+# Prepare annotations for the plot...Extract regression summary details
 summary_model <- summary(model)
 slope <- summary_model$coefficients["Age", "Estimate"]
 p_value <- summary_model$coefficients["Age", "Pr(>|t|)"]

@@ -1,6 +1,6 @@
 ---
 title: "Question 1B Coursework"
-student_number: "SRN190341259"
+student_number: "190341259"
 date: "2023-12-06"
 output: html_document
 ---
@@ -20,25 +20,25 @@ Check github (link: https://github.com/inc0gn1k0/submission_final_st2195.git) to
 
 ```{r Q1B}
 library(ggplot2)
-
-#Step 1: Define Target Distro and Random Walk Metropolis Algo
+#VERSION 2: This was the second version of the code in which I applied the Gelman-Rubin 1992 Var_hat adjustment to achieve a stable convergence value of 1
+# Define the target distribution PDF and its log
 log_f <- function(x) {
   log(0.5) - abs(x)
 }
-
+# Random walk Metropolis algorithm
 random_walk_metropolis <- function(N, s, x0) {
   samples <- numeric(N)
   samples[1] <- x0
   
   for (i in 2:N) {
-    x_star <- rnorm(1, mean = samples[i-1], sd = s)
-    log_r <- log_f(x_star) - log_f(samples[i-1])
-    u <- log(runif(1))
+    x_star <- rnorm(1, mean = samples[i-1], sd = s) # Propose a new state
+    log_r <- log_f(x_star) - log_f(samples[i-1]) # Compute log of the ratio
+    u <- log(runif(1)) # Log of uniform random number for comparison
     
     if (u < log_r) {
-      samples[i] <- x_star
+      samples[i] <- x_star # Accept the new state
     } else {
-      samples[i] <- samples[i-1]
+      samples[i] <- samples[i-1] # Reject the new state
     }
   }
   
@@ -46,29 +46,31 @@ random_walk_metropolis <- function(N, s, x0) {
 }
 
 #Step 2: Compute R_hat value
-
+# Function to compute R hat...we need to realise that behind the complex formulas, there are simple numpy statistical operations.
 compute_R_hat <- function(N, s, J, x0_initial_values) {
   chains <- sapply(x0_initial_values, function(x0) random_walk_metropolis(N, s, x0))
   
   Mj <- colMeans(chains)
-  Vj <- apply(chains, 2, function(chain) var(chain))
-  W <- mean(Vj)
-  B <- N * var(Mj)
-  var_hat_plus <- ((N-1)/N) * W + (1/N) * B #once again we use var_hat_plus as specified in Gelman-Rubin 1992
+  Vj <- apply(chains, 2, function(chain) var(chain)) #ddof is delta degrees of freedom...axis defines that we calculate how our observations vary with the mean observation...if axis was zero we would calculate how each observation varied from the other observations at the same sample point.
+  W <- mean(Vj) #W is essentially a mean of values of V for all chains (1 to J)
+  B <- N * var(Mj) #since we us np.var() it calculates the overall sample mean implicitly (M)....however we must scale it to make it compatible with our calculation for R hat...since mean Mj is the mean between samples, only 3 of the 4 values we use for our mean calculation are free to vary, last one restricted to overall mean and the values of the rest.
+  var_hat_plus <- ((N-1)/N) * W + (1/N) * B #once again we use var_hat_plus as specified in Gelman-Rubin 1992. Instead of just taking B + W, we combine the within-chain variance and between-chain variance in a weighted manner (Gelman, A., & Rubin, D. B. (1992)). This accounts for both the average variance within each chain and the variance between the chain means, adjusted for the number of samples (N). This method provides a more nuanced estimate of the total variance by correctly scaling both components, aiming to accurately reflect the overall variance considering both within-chain and between-chain contributions. It's designed to assess convergence more effectively by comparing this combined variance against the within-chain variance alone.
   R_hat <- sqrt(var_hat_plus / W)
   
   R_hat
 }
 
 #Step 3: Calculate R_hat for each s value and plot
-N <- 2000
-J <- 4
-s <- 0.001
-s_values <- seq(0.001, 1, length.out = 100)
-x0_initial_values <- rnorm(J)
+N <- 2000 #the question asks that I set this to 2000
+J <- 4 #the question asks that I set this to 4
+s <- 0.001 #the question asks that I set this to 0.001
+s_values <- seq(0.001, 1, length.out = 100) #First arg specifies start, second arg represents stop and the third argument, 100, specifies that this interval should be divided into 99 equal segments, creating 100 evenly spaced points within and including the bounds.
+x0_initial_values <- rnorm(J) #Random initial values for the chains...so if J is 4 it is 4 random intial values for the chains
 
+# Calculate R_hats for each s value
 R_hats <- sapply(s_values, function(s) compute_R_hat(N, s, J, x0_initial_values))
 
+# Calculate R_hat given the parameters set in the question stem
 R_hat_specimen <- compute_R_hat(N, s, J, x0_initial_values)
 print(paste("Calculated R_hat:", R_hat_specimen)) #Calculate R_hat for RWMA with N=2000, s=0.001 and J=4
 
@@ -76,7 +78,7 @@ print(paste("Calculated R_hat:", R_hat_specimen)) #Calculate R_hat for RWMA with
 plot2 <- ggplot(data.frame(s = s_values, R_hat = R_hats), aes(x = s, y = R_hat)) +
   geom_line() +
   geom_hline(yintercept = 1.05, linetype = "dashed", color = "red") +
-  geom_vline(xintercept = s_values[min(which(R_hats <= 1.05))], linetype = "dashed", color = "green") +
+  geom_vline(xintercept = s_values[min(which(R_hats <= 1.05))], linetype = "dashed", color = "green") + # Identify and plot the convergence point....just so that its clear to see diagramatically when convergence occurs...
   labs(title = expression(hat(R) ~ "Value over Different s Values"),
        x = "Standard Deviation s", y = expression(hat(R) ~ " Value")) +
   scale_y_continuous(breaks = seq(floor(min(R_hats)), ceiling(max(R_hats)), by = 1)) +
@@ -86,6 +88,7 @@ plot2 <- ggplot(data.frame(s = s_values, R_hat = R_hats), aes(x = s, y = R_hat))
 # Display the plot
 print(plot2)
 
+#Export logic for the image
 dir_path <- './r_images'
 
 if(!dir.exists(dir_path)) {
@@ -97,55 +100,94 @@ ggsave('./r_images/1B_R.png')
 ```
 #### Further explanation behind how our algorithm is constituted and why we made certain programming decisions
 
-The question asks that I use a sequence of mathematical operations to arrive at a value for $\hat{R}$
+## **1B.** 
 
-I can arrive at an output of $\hat{R}$ using simple means and variances that come as standard in python and R. Hence we use these to construct the function compute_R_hat()
+-   Calculate $\hat{R}$ for the random walk Metropolis algorithm with N
+    = 2000, s=0.001 and J=4
+-   Keeping N and J fixed, provide a plot of the values of $\hat{R}$
+    over a grid of s values in the interval between 0.001 and 1 (this
+    will show us convergence behaviour visually)...
 
-Enumerate a number ( J ) of sequences (N) of $x_0,...,x_N$, using different initial values x0.
 
-Each chain should be denoted by $(x_{0}^{j},x_1^{j},...,x_N^{j})$ for $j = 1,2,...,J$
+### Method
 
-If J = 4, then x0_initial_values = np.random.randn(J) captures initial random values of our 4 chains. Within our function we then combine our chains in an array data structure and store it in the variable named chains
+The question asks that I use a sequence of mathematical operations to
+arrive at a value for $\hat{R}$
 
-chains = np.array([random_walk_metropolis(N, s, x0) for x0 in x0_initial_values])
+I can arrive at an output of $\hat{R}$ using simple means and variances
+that come as standard in python and R. Hence we use these to construct
+the function `compute_R_hat()`
 
-$M_j = \frac{1}{N} \sum*{i=1}^{N} x*{i}^{(j)}$ This expression is a simple mean for each chain in our array "chains": Mj = chains.mean(axis=1). Here we calculate the mean for each chain (axis one goes row by row, and we have 4 rows in our numpy array).
+i.  Enumerate a number ( J ) of sequences (N) of $x_{0},...,x_{N}$, using
+    different initial values x0.
 
-The within sample variance of chain j is a simple variance calculation var()for each chain$V_j = \frac{1}{N}\sum_{i=1}^N (x_{i}^{(j)} − M_j)^{2}$
+Each chain should be denoted by 
+$(x_{0}^{j},x_{1}^{j},...,x_{N}^{j})$ for $j = 1,2,...,J$
 
-Vj = chains.var(axis=1) so we calculate the variance of each chain.
+    If `J = 4`, then `x0_initial_values = np.random.randn(J)` captures
+    initial random values of our 4 chains. Within our function we then
+    combine our chains in an array data structure and store it in the
+    variable named `chains`
 
-The overall within sample variance W is a point estimate of the variance of the variances of each chain $W = \frac{1}{J} \sum*{j=1}^{J}V*{j}$
+    `chains = np.array([random_walk_metropolis(N, s, x0) for x0 in x0_initial_values])`
 
-W = Vj.mean()
+ii. $M_{j} = \frac{1}{N}\sum_{i=1}^{N} x_{i}^{(j)}$ This expression is a
+    simple mean for each chain in our array "chains":
+    `Mj = chains.mean(axis=1)`. Here we calculate the mean for each
+    chain (axis one goes row by row, and we have 4 rows in our numpy
+    array).
 
-Define and compute the overall sample mean M as the mean of the means of our chains…
+iii. The within sample variance of chain j is a simple variance
+     calculation `var()`for each
+     chain $V_{j} = \frac{1}{N}\sum_{i=1}^N (x_{i}^{(j)} − M_j)^{2}$
+
+     `Vj = chains.var(axis=1)` so we calculate the variance of each
+     chain.
+
+iv. The overall within sample variance W is a point estimate of the
+    variance of the variances of each chain
+    $W = \frac{1}{J}\sum_{j=1}^{J}V_{j}$
+
+    `W = Vj.mean()`
+
+v.  Define and compute the overall sample mean M as the mean of the
+    means of our chains...
 
 $M = \frac{1}{J} \sum_{j=1}^{J} M_{j}$
 
-M = Mj.mean()remember that chains is an array, and Mj stores an array of means.
+    `M = Mj.mean()`remember that chains is an array, and Mj stores an
+    array of means.
 
-and the between sample variance B is the variance of each chain's mean from the overall mean of all the chains $B = \frac{1}{J}\sum*{j=1}^{J} (M*{j} - M)^{2}$
+vi. and the between sample variance B is the variance of each chain's
+    mean from the overall mean of all the chains
+    $B = \frac{1}{J}\sum_{j=1}^{J} (M_{j} - M)^{2}$
 
-B = N/(J-1) * np.var(Mj, ddof=1) note that we have to scale the between sample variance by N in order to get B (variance estimate based on means of each chain) to the same order of magnitude as W (variance based on individual observations).
+    `B = N/(J-1) * np.var(Mj, ddof=1)` note that we have to scale the
+    between sample variance by N in order to get B (variance estimate
+    based on means of each chain) to the same order of magnitude as W
+    (variance based on individual observations).
 
-Compute the R_hat value as$\hat{R} = \sqrt\frac{B+W}{W}$
+vii. Compute the R_hat value as $\hat{R} = \sqrt\frac{B+W}{W}$
 
-With a small adjustment according to the work of Gelman and Rubin 1992. We include the $\hat{Var}^{+}$ statistic, and use that as our numerator instead of B+W
+With a small adjustment according to the work of Gelman and
+Rubin 1992. We include the $\hat{Var}^{+}$ statistic, and use that
+as our numerator instead of B+W
 
-var_hat_plus = ((N-1)/N) * W + (1/N) * B
+     `var_hat_plus = ((N-1)/N) * W + (1/N) * B`
 
-R_hat = np.sqrt((var_hat_plus) / W)
+     `R_hat = np.sqrt((var_hat_plus) / W)`
 
-This is because Using B+W directly as the numerator without adjusting for the sample size N and the number of chains J may lead to underestimation of the true variance of the target distribution. $\hat{Var}^{+}$method aims to slightly overestimate the true variance of the target distribution. This overestimation is intentional and acts as a conservative measure, ensuring that if the calculated $\hat{R}$ value is close to 1, it is more likely that the chains have indeed converged.
+     i.  This is because Using B+W directly as the numerator without
+         adjusting for the sample size N and the number of chains J may
+         lead to underestimation of the true variance of the target
+         distribution. 
+         
+$\hat{Var}^{+}$  method aims to slightly overestimate the true variance of the target distribution. This
+overestimation is intentional and acts as a conservative
+measure, ensuring that if the calculated $\hat{R}$ value is close to 1, it is more likely that the chains have indeed converged.
 
-In general, values of $\hat{R}$ close to 1 indicate convergence, and it is usually desired for $\hat{R}$ to be lower than 1.05.
+In general, values of $\hat{R}$ close to 1 indicate convergence, and it
+is usually desired for $\hat{R}$ to be lower than 1.05.
 
-### Answer
 
-Below we show the calculated $\hat{R}$ for the random walk Metropolis algorithm with N = 2000, s=0.001 and J=4.
-
-We then keep N and J fixed, and provide a plot of the values of $\hat{R}$ over a grid of s values in the interval between 0.001 and 1.
-
-The goal is to assess whether the variances within the chains are comparable to the variance between the chains, indicating that the chains are sampling from the same distribution and have likely converged.
 

@@ -1,6 +1,6 @@
 ---
 title: "Question 2C - Coursework"
-student_number: "SRN190341259"
+student_number: "190341259"
 date: "2023-12-06"
 output: html_document
 ---
@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 Check github (link: https://github.com/inc0gn1k0/submission_final_st2195.git) to access the entire project folder.
 
 
-## **3.** Plotting a logistic regression model for the probability of diverted US Flights 
+## **2C** Plotting a logistic regression model for the probability of diverted US Flights 
 
 ```
 Analysis Recipe:
@@ -60,16 +60,19 @@ Analysis Recipe:
 
 # i. Feature preparation
 
-```{r Q2C Part 1}
+```{r Q2C Part 1 - Custom Features 1 and 2}
 
-#Diverted percentage based feature preparation and Carrier feature preparation....
+#Part1
+
+#Custom Feature 1: Airport Ranked by Number of Flights Diverted as a % of Total Flights
+#Custom Feature 2: Unique Carriers Ranked by Number of Flights Diverted as a % of Total Flights
 
 library(DBI)
 library(RSQLite)
 library(dplyr)
 
 # Connect to the database
-pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability...the full path logic looks like --> go to current_dir then go to its parent then enter /raw_data/comp97to07.db
 conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
 
 #query data and aggregate
@@ -89,25 +92,25 @@ for (i in subset_of_years) {
   temp_storage_ranked_1[[as.character(i)]] <- df_ranked_divertedcount
 }
 
-df_ranked_divertedcount_2004_2007 <- do.call(rbind, temp_storage_ranked_1) %>%
+df_ranked_divertedcount_1998_2007 <- do.call(rbind, temp_storage_ranked_1) %>%
   group_by(Airport) %>%
   summarise(DivertedCount = sum(DivertedCount)) %>%
   arrange(desc(DivertedCount)) %>%
   ungroup()
 
-sum_diverted_count <- sum(df_ranked_divertedcount_2004_2007$DivertedCount)
-df_ranked_divertedcount_2004_2007$DivertedCount <- df_ranked_divertedcount_2004_2007$DivertedCount/sum_diverted_count
-percent_check <- sum(df_ranked_divertedcount_2004_2007$DivertedCount)
+sum_diverted_count <- sum(df_ranked_divertedcount_1998_2007$DivertedCount)
+df_ranked_divertedcount_1998_2007$DivertedCount <- df_ranked_divertedcount_1998_2007$DivertedCount/sum_diverted_count
+percent_check <- sum(df_ranked_divertedcount_1998_2007$DivertedCount) #checks if total is equal to 1
 
-df_ranked_divertedcount_2004_2007 <- df_ranked_divertedcount_2004_2007 %>% rename(DivertedCount_pct = DivertedCount)
+df_ranked_divertedcount_1998_2007 <- df_ranked_divertedcount_1998_2007 %>% rename(DivertedCount_pct = DivertedCount)
 
-# Optional: Add rank if needed. Note: Commented out as mentioned not improving the model.
+# Optional: Add rank if needed. Note: Commented out as it did not improve the model.
 # df_ranked_divertedcount_2004_2007$Rank <- seq_along(df_ranked_divertedcount_2004_2007$DivertedCount)
 
-print(percent_check)
+print(percent_check) 
 # Display top 10 and bottom 10 airports
-print(head(df_ranked_divertedcount_2004_2007, 10))
-print(tail(df_ranked_divertedcount_2004_2007, 13))
+print(head(df_ranked_divertedcount_1998_2007, 10))
+print(tail(df_ranked_divertedcount_1998_2007, 13))
 
 temp_storage_ranked_2 <- list()
 
@@ -123,7 +126,7 @@ for (i in subset_of_years) {
   }
 
 
-df_ranked_carrier_diverted_2004_2007 <- do.call(rbind, temp_storage_ranked_2) %>%
+df_ranked_carrier_diverted_1998_2007 <- do.call(rbind, temp_storage_ranked_2) %>%
   group_by(UniqueCarrier) %>%
   summarise(DivertedCount = sum(DivertedCount)) %>%
   arrange(desc(DivertedCount)) %>%
@@ -132,25 +135,28 @@ df_ranked_carrier_diverted_2004_2007 <- do.call(rbind, temp_storage_ranked_2) %>
 # Optional: Add rank if needed. Note: Commented out as mentioned in the report, for not improving the model.
 # df_ranked_divertedcount_2004_2007$Rank <- seq_along(df_ranked_divertedcount_2004_2007$DivertedCount)
 
-sum_carrier_diverted_count <- sum(df_ranked_carrier_diverted_2004_2007$DivertedCount)
-df_ranked_carrier_diverted_2004_2007$DivertedCount <- df_ranked_carrier_diverted_2004_2007$DivertedCount/sum_carrier_diverted_count
+sum_carrier_diverted_count <- sum(df_ranked_carrier_diverted_1998_2007$DivertedCount)
+df_ranked_carrier_diverted_1998_2007$DivertedCount <- df_ranked_carrier_diverted_1998_2007$DivertedCount/sum_carrier_diverted_count
 
-percent_check <- sum(df_ranked_carrier_diverted_2004_2007$DivertedCount)
+percent_check <- sum(df_ranked_carrier_diverted_1998_2007$DivertedCount) #checks if total is equal to 1
 
-df_ranked_carrier_diverted_2004_2007 <- df_ranked_carrier_diverted_2004_2007 %>% rename(Carrier_pct_Diverted = DivertedCount)
+df_ranked_carrier_diverted_1998_2007 <- df_ranked_carrier_diverted_1998_2007 %>% rename(Carrier_pct_Diverted = DivertedCount)
 
 
 print(percent_check)
-# Display top 10 and bottom 10 airports
-print(head(df_ranked_carrier_diverted_2004_2007, 10))
-print(tail(df_ranked_carrier_diverted_2004_2007, 13))
+# Display top 10 and bottom 13 airports
+print(head(df_ranked_carrier_diverted_1998_2007, 10))
+print(tail(df_ranked_carrier_diverted_1998_2007, 13))
 
 # Disconnect from the database
 dbDisconnect(conn)
 
 ```
 
-```{r Q2C Part 2}
+```{r Q2C Part 2 - Custom Features 3 and 4}
+#Part 2
+#Custom Feature 3: PRODUCING AIRPORT DEPARTURE DELAY AS A PERCENTAGE OF TOTAL FLIGHTS
+#Custom Feature 4: PRODUCING AIRPORT ARRIVAL DELAY AS A PERCENTAGE OF TOTAL FLIGHTS
 #ArrDelayCount and DepDelayCount percentage based features preparation
 
 # Load necessary libraries
@@ -158,7 +164,7 @@ library(DBI)
 library(dplyr)
 
 # Connect to the database
-pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability
+pathname <- file.path(getwd(), '..', 'raw_data','comp97to07.db') #relative path used for code reliability...the full path logic looks like --> go to current_dir then go to its parent then enter /raw_data/comp97to07.db
 conn <- dbConnect(RSQLite::SQLite(), dbname = pathname)
 
 list_of_years <- c(1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007) #adjust this according to your available compute resources :)......less years means lower probability of a kernel crash on your local machine.
@@ -179,21 +185,21 @@ for (i in list_of_years) {
   temp_storage_ranked_1[[as.character(i)]] <- df_ranked_depdelay
 }
 
-df_ranked_depcount_2004_2007 <- do.call(rbind, temp_storage_ranked_1) %>%
+df_ranked_depcount_1998_2007 <- do.call(rbind, temp_storage_ranked_1) %>%
   group_by(Airport) %>%
   summarise(DepDelayCount = sum(DepDelayCount)) %>%
   arrange(desc(DepDelayCount))
 
-sum_depcount <- sum(df_ranked_depcount_2004_2007$DepDelayCount)
+sum_depcount <- sum(df_ranked_depcount_1998_2007$DepDelayCount)
 
-df_ranked_depcount_2004_2007$DepDelayCount <- df_ranked_depcount_2004_2007$DepDelayCount/sum_depcount
+df_ranked_depcount_1998_2007$DepDelayCount <- df_ranked_depcount_1998_2007$DepDelayCount/sum_depcount
 
-df_ranked_depcount_2004_2007 <- rename(df_ranked_depcount_2004_2007, DepDelayCount_pct= DepDelayCount)
-percent_check <- sum(df_ranked_depcount_2004_2007$DepDelayCount)
+df_ranked_depcount_1998_2007 <- rename(df_ranked_depcount_1998_2007, DepDelayCount_pct= DepDelayCount)
+percent_check <- sum(df_ranked_depcount_1998_2007$DepDelayCount) #checks if total is equal to 1
 
 print(percent_check)
-print(head(df_ranked_depcount_2004_2007, 10))
-print(tail(df_ranked_depcount_2004_2007, 10))
+print(head(df_ranked_depcount_1998_2007, 10))
+print(tail(df_ranked_depcount_1998_2007, 10))
 
 
 
@@ -234,21 +240,21 @@ for (i in list_of_years) {
   temp_storage_ranked_3[[as.character(i)]] <- df_ranked_arrdelay_count
 }
 
-df_ranked_arrcount_2004_2007 <- do.call(rbind, temp_storage_ranked_3) %>%
+df_ranked_arrcount_1998_2007 <- do.call(rbind, temp_storage_ranked_3) %>%
   group_by(Airport) %>%
   summarise(ArrDelayCount = sum(ArrDelayCount)) %>%
   arrange(desc(ArrDelayCount))
 
-sum_arrcount <- sum(df_ranked_arrcount_2004_2007$ArrDelayCount)
+sum_arrcount <- sum(df_ranked_arrcount_1998_2007$ArrDelayCount)
 
-df_ranked_arrcount_2004_2007$ArrDelayCount <- df_ranked_arrcount_2004_2007$ArrDelayCount/sum_arrcount
+df_ranked_arrcount_1998_2007$ArrDelayCount <- df_ranked_arrcount_1998_2007$ArrDelayCount/sum_arrcount
 
-df_ranked_arrcount_2004_2007 <- rename(df_ranked_arrcount_2004_2007,ArrDelayCount_pct= ArrDelayCount)
-percent_check <- sum(df_ranked_arrcount_2004_2007$ArrDelayCount)
+df_ranked_arrcount_1998_2007 <- rename(df_ranked_arrcount_1998_2007,ArrDelayCount_pct= ArrDelayCount)
+percent_check <- sum(df_ranked_arrcount_1998_2007$ArrDelayCount) #checks if total is equal to 1
 
 print(percent_check)
-print(head(df_ranked_arrcount_2004_2007, 10))
-print(tail(df_ranked_arrcount_2004_2007, 10))
+print(head(df_ranked_arrcount_1998_2007, 10))
+print(tail(df_ranked_arrcount_1998_2007, 10))
 
 # Don't forget to close the database connection
 dbDisconnect(conn)
@@ -283,7 +289,52 @@ dbDisconnect(conn)
 
 ```
 
-```{r Q2C Part 3}
+```{r Q2C Part 3 - Complete Feature Set Merge}
+#Part 3
+
+#Producing DF of our Complete Feature Set
+#In the final feature set used to train our model, we left out Origin and Dest (Categorical Variables) and Latitudes and Longitudes, choosing instead to summarize these parameters using the Distance variable...
+#I also made sure only to include airports and flights that have had at least one diverted incident.
+
+# Here I
+# Read a Query for each year to extract the relevant default features.
+# Performed the following merges to join our custom features to our default features:
+# Merge for Destination DivertedCount Complete...
+# Merge for Destination DepDelayCount Complete...
+# Merge for Destination ArrDelayCount Complete...
+# Merge for Carrier%Diverted Complete...1
+# 
+# I standardized CRSDepTime and CRSArrTime from within the query using:
+#         (y.CRSArrTime)/10000 AS CRSArrTime, 
+#         (y.CRSDepTime)/10000 AS CRSDepTime, 
+# 
+# I had initially included these features but dropped them because they added unecessary computational complexity:
+#    
+#         ao.lat AS OriginLatitude,
+#         ao.long AS OriginLongitude, 
+#         ad.lat AS DestinationLatitude,
+#         ad.long AS DestinationLongitude, 
+# 
+# I kept y.DayofMonth because it was important for indexing our resulting rows...but was not used thereafter
+# 
+# These conditions were important for our query:
+#     WHERE y.Cancelled != 1 
+#             AND y.tailnum IN (
+#             SELECT tailnum 
+#             FROM Y{year} AS sub_y
+#             WHERE sub_y.Diverted = 1
+#         )
+#             AND y.Origin IN (
+#             SELECT Origin
+#             FROM Y{year} AS sub_y
+#             WHERE sub_y.Diverted = 1
+#             )
+#             AND y.Dest IN (
+#             SELECT Dest
+#             FROM Y{year} AS sub_y
+#             WHERE sub_y.Diverted = 1
+#             )
+
 library(DBI)
 library(dplyr)
 library(data.table)
@@ -376,12 +427,12 @@ for (year in subset_of_years) {
 
   # Applying merge functions
   #df_core_features <- diverted_merge_with_suffix(df_core_features, df_ranked_divertedcount_2004_2007, 'Origin')
-  df_core_features <- diverted_merge_with_suffix(df_core_features, df_ranked_divertedcount_2004_2007, 'Dest')
+  df_core_features <- diverted_merge_with_suffix(df_core_features, df_ranked_divertedcount_1998_2007, 'Dest')
   #df_core_features <- dep_delaycount_merge_with_suffix(df_core_features, df_ranked_depcount_2004_2007, 'Origin')
-  df_core_features <- dep_delaycount_merge_with_suffix(df_core_features, df_ranked_depcount_2004_2007, 'Dest')
+  df_core_features <- dep_delaycount_merge_with_suffix(df_core_features, df_ranked_depcount_1998_2007, 'Dest')
   #df_core_features <- arr_delaycount_merge_with_suffix(df_core_features, df_ranked_arrcount_2004_2007, 'Origin')
-  df_core_features <- arr_delaycount_merge_with_suffix(df_core_features, df_ranked_arrcount_2004_2007, 'Dest')
-  df_core_features <- carrier_delaycount_merge_with_suffix(df_core_features, df_ranked_carrier_diverted_2004_2007, 'UniqueCarrier')  
+  df_core_features <- arr_delaycount_merge_with_suffix(df_core_features, df_ranked_arrcount_1998_2007, 'Dest')
+  df_core_features <- carrier_delaycount_merge_with_suffix(df_core_features, df_ranked_carrier_diverted_1998_2007, 'UniqueCarrier')  
   
   # df_core_features <- dep_arr_delaylength_merge_with_suffix(df_core_features, df_ranked_deplength_2004_2007, 'Origin', 'DepDelayLength')
   # df_core_features <- dep_arr_delaylength_merge_with_suffix(df_core_features, df_ranked_arrlength_2004_2007, 'Dest', 'ArrDelayLength')
@@ -414,8 +465,8 @@ print(paste("Data processing complete. Exported", nrow(df_complete_airplane_feat
 ```
 
 
-```{r Q2C Part 4}
-#Need to free up memory for this
+```{r Q2C Part 4 - Final Cleaning Step of our Feature Set}
+#Need to free up memory for this in R...so i cleared the workspace of variables I do not need to use anymore
 exempt_vars <- c("df_ranked_divertedcount_2004_2007", "df_complete_airplane_features_final", "sum_diverted_count")
 workspace_vars <- ls()
 rm(list = setdiff(workspace_vars, exempt_vars)) # Remove all objects except the exempt ones
@@ -455,7 +506,7 @@ fwrite(df_complete_airplane_features_cleaned, './complete-airplane-feature-set-R
 ```
 
 
-```{r Q2C Part 5}
+```{r Q2C Part 5 - Demonstration of the class imbalance with respect to our target variable}
 
 library(dplyr)
 
@@ -465,7 +516,7 @@ library(dplyr)
 
 cat('This is the number of diverted flights between 2004 and 2007:', sum_diverted_count, '\n')
 
-# Calculate the total number of rows in your final data frame
+# Calculate the total number of rows in the final data frame
 sum_sample_space <- nrow(df_complete_airplane_features_final)
 
 cat('\n','This is the total size of our training/test split data:', sum_sample_space, '\n')
@@ -484,6 +535,9 @@ cat('This is the % of our sample that observed the phenomenon:', round(percentag
 ```{r Q2C - ROC-AUC and coefficients...which we have to use for plotting the bar plot - Part 6.0}
 # Clear existing workspace
 rm(list = ls())
+
+#NOW WE TRY WITH DOWNSAMPLING AND MORE DATA...
+#Since we only included carriers that had a diversion (see query in code block 1), and airports that had a diversion (see query in code block 1)...we can safely downsample without losing valuable data...
 
 # Load necessary libraries
 library(data.table)
@@ -566,7 +620,7 @@ for(year in names(results_list)) {
 # library(pROC)
 # 
 # # Load the dataset
-# df <- fread('/Users/nikolaijaniszewsky/Desktop/My_Stuff/UOL_Course_Content/Academia/2024/ST2195/ST2195_coursework/raw_data/complete-airplane-feature-set-R.csv')
+# df <- fread('/Users/admin/Desktop/My_Stuff/UOL_Course_Content/Academia/2024/ST2195/ST2195_coursework/raw_data/complete-airplane-feature-set-R.csv')
 # 
 # # Select required columns and ensure it's a data.table
 # selected_df <- df[, .(Year, Month, DayOfWeek, CRSArrTime, CRSDepTime, Distance, DivertedCount_pct_Dest, DepDelayCount_pct_Dest, ArrDelayCount_pct_Dest, Carrier_pct_Diverted_UniqueCarrier, Diverted)]
@@ -677,7 +731,7 @@ for(year in names(results_list)) {
 #        color = "Year") +
 #   theme_minimal()
 # 
-# ggsave("/Users/nikolaijaniszewsky/Desktop/My_Stuff/UOL_Course_Content/Academia/2024/ST2195/ST2195_coursework/submission/R-2C-ROC-2004-2007-EXP.png", plot = roc_curve, width = 10, height = 8)
+# ggsave("/Users/admin/Desktop/My_Stuff/UOL_Course_Content/Academia/2024/ST2195/ST2195_coursework/submission/R-2C-ROC-2004-2007-EXP.png", plot = roc_curve, width = 10, height = 8)
 
 ```
 
@@ -820,7 +874,7 @@ tab20_colors2 <- c("#9467bd", "#c5b0d5", "#9edae5", "#ff7f0e", "#8c564b",
                   "#aec7e8", "#ffbb78", "#7f7f7f", "#ff9896", "#bcbd22",
                   "#c49c94", "#f7b6d2", "#c7c7c7", "#dbdb8d", "#e377c2")
 
-# Placeholder for all AUC scores across all folds and years
+# Placeholder for all AUC scores across all folds and years..
 all_auc_scores <- numeric()
 for(year in unique_years) {
   trainData_year <- trainData[Year == year, ]
@@ -843,7 +897,7 @@ for(year in unique_years) {
     auc_scores[i] <- auc(roc_result)
   }
   
-  # Append the AUC scores for the current year to the overall list of AUC scores
+  # Append the AUC scores for the current year to the overall list of AUC scores...
   all_auc_scores <- c(all_auc_scores, auc_scores)
 }
 # Overall average AUC score
@@ -851,7 +905,6 @@ overall_avg_auc <- mean(all_auc_scores)
 cat(sprintf("Overall Average AUC: %f\n", overall_avg_auc))
 
 # Adjust the 'x' and 'y' aesthetics to use the new 'y_pos' for positioning
-# Note: You might need to adjust the 'vjust' and 'nudge_y' for your specific plot
 p <- ggplot(roc_data_combined, aes(x = FPR, y = TPR, color = as.factor(Year))) +
   geom_line() +
   geom_abline(linetype="dotted", color="black", slope = 1, intercept = 0) +
@@ -922,8 +975,6 @@ ggsave("./r_images/R_2C_LogisticRegression.png", plot=barplot, width = 10, heigh
 
 
 ```{r - Part 7 - The Average Coefficients}
-
-# Assuming results_list is your list of models for different years
 # and feature_names includes all feature names
 
 all_coeffs <- list()
@@ -960,7 +1011,7 @@ for(predictor in ordered_predictors) {
 
 ```
 
-```{r - Part 8 - Improving The Model by tuning hyperparameters}
+```{r - Part 8 - Improving The Model by tuning hyperparameters...glmnet()}
 library(glmnet)
 if (!requireNamespace("glmnet", quietly = TRUE)) {
     install.packages("glmnet")
